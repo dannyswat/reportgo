@@ -172,30 +172,26 @@ func (e *Engine) renderSection(section *models.Section) error {
 		e.pdf.AddPage()
 	}
 
-	// Render elements
-	for _, text := range section.Texts {
-		e.renderText(&text)
-	}
-	for _, img := range section.Images {
-		e.renderImage(&img)
-	}
-	for _, table := range section.Tables {
-		e.renderTable(&table)
-	}
-	for _, list := range section.Lists {
-		e.renderList(&list)
-	}
-	for _, kvList := range section.KeyValueLists {
-		e.renderKeyValueList(&kvList)
-	}
-	for _, line := range section.Lines {
-		e.renderLine(&line)
-	}
-	for _, rect := range section.Rectangles {
-		e.renderRectangle(&rect)
-	}
-	for range section.PageBreaks {
-		e.pdf.AddPage()
+	// Render elements in document order
+	for _, elem := range section.Elements {
+		switch elem.Type {
+		case "text":
+			e.renderText(elem.Text)
+		case "image":
+			e.renderImage(elem.Image)
+		case "table":
+			e.renderTable(elem.Table)
+		case "list":
+			e.renderList(elem.List)
+		case "keyValueList":
+			e.renderKeyValueList(elem.KVList)
+		case "line":
+			e.renderLine(elem.Line)
+		case "rectangle":
+			e.renderRectangle(elem.Rectangle)
+		case "pageBreak":
+			e.pdf.AddPage()
+		}
 	}
 
 	// Handle page break after

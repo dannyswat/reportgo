@@ -97,9 +97,11 @@ func (l List) GetCondition() string { return l.Condition }
 // KeyValueList represents a key-value list element.
 type KeyValueList struct {
 	BaseElement
-	Style    string         `xml:"style,attr"`
-	KeyWidth float64        `xml:"keyWidth,attr"`
-	Items    []KeyValueItem `xml:"item"`
+	Style      string         `xml:"style,attr"`
+	KeyWidth   float64        `xml:"keyWidth,attr"`
+	ValueWidth float64        `xml:"valueWidth,attr"`
+	ValueAlign string         `xml:"valueAlign,attr"`
+	Items      []KeyValueItem `xml:"item"`
 }
 
 // GetType returns the element type.

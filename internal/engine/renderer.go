@@ -224,10 +224,20 @@ func (e *Engine) renderKeyValueList(kvList *models.KeyValueList) {
 		keyWidth = 50
 	}
 
+	valueWidth := kvList.ValueWidth
+	if valueWidth == 0 {
+		valueWidth = 0 // 0 means fill remaining width
+	}
+
+	valueAlign := kvList.ValueAlign
+	if valueAlign == "" {
+		valueAlign = "L"
+	}
+
 	for _, item := range kvList.Items {
 		value := e.processTemplate(item.Value)
-		e.pdf.CellFormat(keyWidth, 6, item.Key+":", "", 0, "L", false, 0, "")
-		e.pdf.CellFormat(0, 6, value, "", 1, "L", false, 0, "")
+		e.pdf.CellFormat(keyWidth, 6, item.Key, "", 0, "L", false, 0, "")
+		e.pdf.CellFormat(valueWidth, 6, value, "", 1, valueAlign, false, 0, "")
 	}
 
 	if kvList.SpacingAfter > 0 {
@@ -238,9 +248,16 @@ func (e *Engine) renderKeyValueList(kvList *models.KeyValueList) {
 // renderLine renders a line element.
 func (e *Engine) renderLine(line *models.Line) {
 	pageWidth, pageHeight := e.pdf.GetPageSize()
+	currentY := e.pdf.GetY()
 
 	x1, y1 := line.X1, line.Y1
 	x2, y2 := line.X2, line.Y2
+
+	// If y1 and y2 are both 0, use current Y position (relative positioning)
+	if y1 == 0 && y2 == 0 {
+		y1 = currentY
+		y2 = currentY
+	}
 
 	// Handle negative coordinates
 	if x1 < 0 {
@@ -274,6 +291,12 @@ func (e *Engine) renderLine(line *models.Line) {
 func (e *Engine) renderRectangle(rect *models.Rectangle) {
 	style := ""
 
+	// Use current Y position if y=0 (relative positioning)
+	y := rect.Y
+	if y == 0 {
+		y = e.pdf.GetY()
+	}
+
 	if rect.FillColor != nil {
 		r, g, b := rect.FillColor.ToRGB()
 		e.pdf.SetFillColor(r, g, b)
@@ -295,13 +318,16 @@ func (e *Engine) renderRectangle(rect *models.Rectangle) {
 	}
 
 	if rect.Radius > 0 {
-		e.pdf.RoundedRect(rect.X, rect.Y, rect.Width, rect.Height, rect.Radius, "1234", style)
+		e.pdf.RoundedRect(rect.X, y, rect.Width, rect.Height, rect.Radius, "1234", style)
 	} else {
-		e.pdf.Rect(rect.X, rect.Y, rect.Width, rect.Height, style)
+		e.pdf.Rect(rect.X, y, rect.Width, rect.Height, style)
 	}
 
+	// Don't move Y position - let following elements overlay on the rectangle
+	// The spacingAfter will handle the Y movement
 	if rect.SpacingAfter > 0 {
-		e.pdf.SetY(rect.Y + rect.Height + rect.SpacingAfter)
+		e.pdf.SetY(y + rect.Height)
+		e.pdf.Ln(rect.SpacingAfter)
 	}
 }
 

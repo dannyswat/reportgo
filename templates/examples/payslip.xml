@@ -1,0 +1,175 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<report xmlns="http://reportgo.io/schema/v1"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://reportgo.io/schema/v1 ../../schemas/reportgo.xsd"
+        version="1.0">
+    
+    <metadata>
+        <name>Employee Payslip</name>
+        <description>Template for employee payslip</description>
+        <author>ReportGo</author>
+    </metadata>
+    
+    <document orientation="portrait" unit="mm" format="A4">
+        <margins top="15" right="15" bottom="15" left="15"/>
+    </document>
+    
+    <fonts>
+        <font name="arialunicode" family="Arial Unicode MS" style="" file="/System/Library/Fonts/Supplemental/Arial Unicode.ttf"/>
+    </fonts>
+    
+    <styles>
+        <style name="company_name">
+            <fontFamily>Arial Unicode MS</fontFamily>
+            <fontSize>16</fontSize>
+            <textColor r="0" g="51" b="102"/>
+            <align>C</align>
+        </style>
+        
+        <style name="title">
+            <fontFamily>Arial Unicode MS</fontFamily>
+            <fontSize>12</fontSize>
+            <textColor r="0" g="0" b="0"/>
+            <align>C</align>
+        </style>
+        
+        <style name="section_header">
+            <fontFamily>Arial Unicode MS</fontFamily>
+            <fontSize>10</fontSize>
+            <textColor r="255" g="255" b="255"/>
+            <fillColor r="0" g="51" b="102"/>
+            <align>L</align>
+        </style>
+        
+        <style name="label">
+            <fontFamily>Arial Unicode MS</fontFamily>
+            <fontSize>9</fontSize>
+            <textColor r="80" g="80" b="80"/>
+            <align>L</align>
+        </style>
+        
+        <style name="value">
+            <fontFamily>Arial Unicode MS</fontFamily>
+            <fontSize>9</fontSize>
+            <textColor r="0" g="0" b="0"/>
+            <align>L</align>
+        </style>
+        
+        <style name="table_header">
+            <fontFamily>Arial Unicode MS</fontFamily>
+            <fontSize>8</fontSize>
+            <textColor r="255" g="255" b="255"/>
+            <fillColor r="70" g="70" b="70"/>
+            <align>C</align>
+        </style>
+        
+        <style name="table_cell">
+            <fontFamily>Arial Unicode MS</fontFamily>
+            <fontSize>8</fontSize>
+            <textColor r="0" g="0" b="0"/>
+            <align>L</align>
+        </style>
+        
+        <style name="total_row">
+            <fontFamily>Arial Unicode MS</fontFamily>
+            <fontSize>9</fontSize>
+            <textColor r="0" g="0" b="0"/>
+            <align>R</align>
+        </style>
+        
+        <style name="net_pay">
+            <fontFamily>Arial Unicode MS</fontFamily>
+            <fontSize>11</fontSize>
+            <textColor r="0" g="102" b="0"/>
+            <align>C</align>
+        </style>
+        
+        <style name="footer_text">
+            <fontFamily>Arial Unicode MS</fontFamily>
+            <fontSize>8</fontSize>
+            <textColor r="128" g="128" b="128"/>
+            <align>C</align>
+        </style>
+    </styles>
+    
+    <sections>
+        <!-- Company Header -->
+        <section name="header_section">
+            <image path="templates/examples/Acme-corp.png" width="50" height="15" align="C" spacingAfter="2"/>
+            <text style="label" align="C" spacingAfter="1">{{.CompanyAddress}}</text>
+            <text style="label" align="C" spacingAfter="5">{{.CompanyContact}}</text>
+            <line x1="15" y1="0" x2="195" y2="0" width="0.5" color="r:0 g:51 b:102"/>
+            <text style="title" spacingAfter="5">PAYSLIP</text>
+        </section>
+        
+        <!-- Pay Period and Employee Info -->
+        <section name="info_section">
+            <keyValueList style="value" keyWidth="35" valueWidth="55" spacingAfter="1">
+                <item key="Pay Period:" value="{{.PayPeriod}}"/>
+                <item key="Pay Date:" value="{{.PayDate}}"/>
+            </keyValueList>
+            <line x1="15" y1="0" x2="195" y2="0" width="0.2" color="r:200 g:200 b:200"/>
+            <keyValueList style="value" keyWidth="35" valueWidth="55" spacingAfter="5">
+                <item key="Employee ID:" value="{{.EmployeeID}}"/>
+                <item key="Name:" value="{{.EmployeeName}}"/>
+                <item key="Department:" value="{{.Department}}"/>
+                <item key="Position:" value="{{.Position}}"/>
+            </keyValueList>
+        </section>
+        
+        <!-- Earnings Section -->
+        <section name="earnings_section">
+            <text style="section_header" width="180" spacingAfter="1">  EARNINGS</text>
+            <table dataSource="{{.Earnings}}" headerStyle="table_header" 
+                   cellStyle="table_cell" border="true" spacingAfter="1">
+                <columns>
+                    <column header="Description" field="description" width="90" align="L"/>
+                    <column header="Units" field="units" width="25" align="C"/>
+                    <column header="Rate" field="rate" width="30" align="R" format="currency"/>
+                    <column header="Amount" field="amount" width="35" align="R" format="currency"/>
+                </columns>
+            </table>
+            <keyValueList style="total_row" keyWidth="145" valueWidth="35" valueAlign="R" spacingAfter="5">
+                <item key="Total Earnings:" value="{{.TotalEarnings}}"/>
+            </keyValueList>
+        </section>
+        
+        <!-- Deductions Section -->
+        <section name="deductions_section">
+            <text style="section_header" width="180" spacingAfter="1">  DEDUCTIONS</text>
+            <table dataSource="{{.Deductions}}" headerStyle="table_header" 
+                   cellStyle="table_cell" border="true" spacingAfter="1">
+                <columns>
+                    <column header="Description" field="description" width="145" align="L"/>
+                    <column header="Amount" field="amount" width="35" align="R" format="currency"/>
+                </columns>
+            </table>
+            <keyValueList style="total_row" keyWidth="145" valueWidth="35" valueAlign="R" spacingAfter="5">
+                <item key="Total Deductions:" value="{{.TotalDeductions}}"/>
+            </keyValueList>
+        </section>
+        
+        <!-- Net Pay Section -->
+        <section name="net_pay_section">
+            <rectangle x="15" y="0" width="180" height="10" fillColor="r:240 g:248 b:255" borderColor="r:0 g:51 b:102"/>
+            <text style="net_pay" width="180" spacingAfter="8">NET PAY: {{.NetPay}}</text>
+        </section>
+        
+        <!-- Payment Details -->
+        <section name="payment_section">
+            <text style="section_header" width="180" spacingAfter="1">  PAYMENT DETAILS</text>
+            <keyValueList style="value" keyWidth="45" valueWidth="135" spacingAfter="5">
+                <item key="Bank:" value="{{.BankName}}"/>
+                <item key="Account:" value="{{.AccountNumber}}"/>
+                <item key="Payment Method:" value="{{.PaymentMethod}}"/>
+            </keyValueList>
+        </section>
+        
+        <!-- Footer -->
+        <section name="footer_section">
+            <line x1="15" y1="0" x2="195" y2="0" width="0.2" color="r:200 g:200 b:200"/>
+            <text style="footer_text" spacingAfter="1">This is a computer-generated document. No signature is required.</text>
+            <text style="footer_text">For queries, please contact HR at {{.HREmail}}</text>
+        </section>
+    </sections>
+</report>

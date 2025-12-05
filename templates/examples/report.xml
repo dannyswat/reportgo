@@ -14,25 +14,29 @@
         <margins top="15" right="15" bottom="15" left="15"/>
     </document>
     
+    <fonts>
+        <font name="arialunicode" family="Arial Unicode MS" style="" file="/System/Library/Fonts/Supplemental/Arial Unicode.ttf"/>
+    </fonts>
+    
     <styles>
         <style name="title">
-            <fontFamily>Arial</fontFamily>
-            <fontStyle>B</fontStyle>
+            <fontFamily>Arial Unicode MS</fontFamily>
+            <fontStyle></fontStyle>
             <fontSize>24</fontSize>
             <textColor r="0" g="51" b="102"/>
             <align>C</align>
         </style>
         
         <style name="heading1">
-            <fontFamily>Arial</fontFamily>
-            <fontStyle>B</fontStyle>
+            <fontFamily>Arial Unicode MS</fontFamily>
+            <fontStyle></fontStyle>
             <fontSize>16</fontSize>
             <textColor r="0" g="0" b="0"/>
             <align>L</align>
         </style>
         
         <style name="body">
-            <fontFamily>Arial</fontFamily>
+            <fontFamily>Arial Unicode MS</fontFamily>
             <fontStyle></fontStyle>
             <fontSize>11</fontSize>
             <textColor r="0" g="0" b="0"/>
@@ -41,8 +45,8 @@
         </style>
         
         <style name="table_header">
-            <fontFamily>Arial</fontFamily>
-            <fontStyle>B</fontStyle>
+            <fontFamily>Arial Unicode MS</fontFamily>
+            <fontStyle></fontStyle>
             <fontSize>10</fontSize>
             <textColor r="255" g="255" b="255"/>
             <fillColor r="0" g="51" b="102"/>
@@ -50,7 +54,7 @@
         </style>
         
         <style name="table_cell">
-            <fontFamily>Arial</fontFamily>
+            <fontFamily>Arial Unicode MS</fontFamily>
             <fontStyle></fontStyle>
             <fontSize>10</fontSize>
             <textColor r="0" g="0" b="0"/>
@@ -66,7 +70,7 @@
         
         <section name="summary_section">
             <text style="heading1" spacingAfter="5">Executive Summary</text>
-            <text style="body" spacingAfter="15">{{.Summary}}</text>
+            <text style="body" spacingAfter="15" wrap="true">{{.Summary}}</text>
             <keyValueList style="body" spacingAfter="20">
                 <item key="Total Revenue" value="{{.TotalRevenue}}"/>
                 <item key="Total Orders" value="{{.TotalOrders}}"/>

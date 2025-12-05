@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"os"
 	"strings"
 	"text/template"
 
@@ -112,7 +113,14 @@ func (e *Engine) initPDF() {
 	// Load custom fonts
 	if e.report.Fonts != nil {
 		for _, font := range e.report.Fonts.Fonts {
-			e.pdf.AddUTF8Font(font.Family, font.Style, font.File)
+			// Read font file ourselves to avoid gofpdf path.Join bug with absolute paths
+			fontBytes, err := os.ReadFile(font.File)
+			if err != nil {
+				// Log warning but continue - font may not be critical
+				fmt.Fprintf(os.Stderr, "Warning: could not load font %s: %v\n", font.File, err)
+				continue
+			}
+			e.pdf.AddUTF8FontFromBytes(font.Family, font.Style, fontBytes)
 		}
 	}
 }

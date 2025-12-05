@@ -42,6 +42,12 @@ func (e *Engine) renderText(text *models.Text) {
 	// Render text
 	if text.Width > 0 {
 		e.pdf.MultiCell(text.Width, lineHeight, content, "", align, false)
+	} else if text.Wrap {
+		// Use full available width for wrapping
+		pageWidth, _ := e.pdf.GetPageSize()
+		marginLeft, _, marginRight, _ := e.pdf.GetMargins()
+		availableWidth := pageWidth - marginLeft - marginRight
+		e.pdf.MultiCell(availableWidth, lineHeight, content, "", align, false)
 	} else {
 		e.pdf.CellFormat(0, lineHeight, content, "", 1, align, false, 0, "")
 	}
@@ -108,20 +114,25 @@ func (e *Engine) renderTable(table *models.Table) {
 		return
 	}
 
-	rows, ok := data.([]interface{})
-	if !ok {
+	// Convert data to slice of maps - handle both []interface{} and []map[string]interface{}
+	var rows []map[string]interface{}
+	switch v := data.(type) {
+	case []interface{}:
+		for _, item := range v {
+			if m, ok := item.(map[string]interface{}); ok {
+				rows = append(rows, m)
+			}
+		}
+	case []map[string]interface{}:
+		rows = v
+	default:
 		return
 	}
 
 	// Render data rows
-	for i, row := range rows {
+	for i, rowMap := range rows {
 		if table.CellStyle != "" {
 			e.applyStyle(table.CellStyle)
-		}
-
-		rowMap, ok := row.(map[string]interface{})
-		if !ok {
-			continue
 		}
 
 		// Alternate row colors
@@ -164,14 +175,24 @@ func (e *Engine) renderList(list *models.List) {
 		return
 	}
 
-	items, ok := data.([]interface{})
-	if !ok {
+	// Convert data to slice of strings - handle both []interface{} and []string
+	var items []string
+	switch v := data.(type) {
+	case []interface{}:
+		for _, item := range v {
+			if s, ok := item.(string); ok {
+				items = append(items, s)
+			}
+		}
+	case []string:
+		items = v
+	default:
 		return
 	}
 
 	bullet := list.Bullet
 	if bullet == "" {
-		bullet = "•"
+		bullet = "-" // Use ASCII dash as default for compatibility
 	}
 
 	indent := list.Indent
@@ -181,12 +202,7 @@ func (e *Engine) renderList(list *models.List) {
 
 	marginLeft, _, _, _ := e.pdf.GetMargins()
 
-	for _, item := range items {
-		str, ok := item.(string)
-		if !ok {
-			continue
-		}
-
+	for _, str := range items {
 		e.pdf.SetX(marginLeft + indent)
 		e.pdf.CellFormat(10, 6, bullet, "", 0, "L", false, 0, "")
 		e.pdf.CellFormat(0, 6, str, "", 1, "L", false, 0, "")

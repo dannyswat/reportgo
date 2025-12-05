@@ -197,7 +197,7 @@ Data is provided in JSON or YAML format:
 ### Text Element
 
 ```xml
-<text style="style_name" x="10" y="20" align="L" spacingAfter="10">
+<text style="style_name" x="10" y="20" align="L" wrap="true" spacingAfter="10">
     {{.Variable}}
 </text>
 ```
@@ -207,7 +207,9 @@ Data is provided in JSON or YAML format:
 | `style` | Reference to defined style | No |
 | `x` | Absolute X position | No |
 | `y` | Absolute Y position | No |
+| `width` | Fixed width for text (enables wrapping) | No |
 | `align` | L \| C \| R \| J | No |
+| `wrap` | Enable text wrapping to fit page width (true/false) | No |
 | `spacingAfter` | Vertical spacing after element | No |
 
 ### Image Element

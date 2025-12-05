@@ -22,6 +22,7 @@ type Text struct {
 	Y       float64 `xml:"y,attr"`
 	Width   float64 `xml:"width,attr"`
 	Align   string  `xml:"align,attr"`
+	Wrap    bool    `xml:"wrap,attr"`
 }
 
 // GetType returns the element type.

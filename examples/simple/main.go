@@ -12,7 +12,7 @@ func main() {
 	engine := reportgo.New()
 
 	// Load template
-	if err := engine.LoadTemplate("../../templates/examples/report.xml"); err != nil {
+	if err := engine.LoadTemplate("templates/examples/report.xml"); err != nil {
 		log.Fatalf("Failed to load template: %v", err)
 	}
 

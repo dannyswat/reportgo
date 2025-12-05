@@ -252,6 +252,7 @@
         <xs:attribute name="y" type="xs:decimal"/>
         <xs:attribute name="width" type="rg:PositiveDecimal"/>
         <xs:attribute name="align" type="rg:AlignType"/>
+        <xs:attribute name="wrap" type="xs:boolean" default="false"/>
         <xs:attribute name="spacingAfter" type="rg:PositiveDecimal"/>
         <xs:attribute name="condition" type="rg:TemplateStringType"/>
     </xs:complexType>

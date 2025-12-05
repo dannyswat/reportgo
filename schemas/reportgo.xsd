@@ -1,0 +1,350 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           xmlns:rg="http://reportgo.io/schema/v1"
+           targetNamespace="http://reportgo.io/schema/v1"
+           elementFormDefault="qualified"
+           attributeFormDefault="unqualified">
+
+    <!-- ==================== Root Element ==================== -->
+    <xs:element name="report" type="rg:ReportType">
+        <xs:annotation>
+            <xs:documentation>Root element for ReportGo PDF templates</xs:documentation>
+        </xs:annotation>
+    </xs:element>
+
+    <!-- ==================== Simple Types ==================== -->
+    
+    <xs:simpleType name="OrientationType">
+        <xs:restriction base="xs:string">
+            <xs:enumeration value="portrait"/>
+            <xs:enumeration value="landscape"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="UnitType">
+        <xs:restriction base="xs:string">
+            <xs:enumeration value="mm"/>
+            <xs:enumeration value="cm"/>
+            <xs:enumeration value="in"/>
+            <xs:enumeration value="pt"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="PageFormatType">
+        <xs:restriction base="xs:string">
+            <xs:enumeration value="A3"/>
+            <xs:enumeration value="A4"/>
+            <xs:enumeration value="A5"/>
+            <xs:enumeration value="Letter"/>
+            <xs:enumeration value="Legal"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="FontStyleType">
+        <xs:restriction base="xs:string">
+            <xs:enumeration value=""/>
+            <xs:enumeration value="B"/>
+            <xs:enumeration value="I"/>
+            <xs:enumeration value="BI"/>
+            <xs:enumeration value="U"/>
+            <xs:enumeration value="BU"/>
+            <xs:enumeration value="IU"/>
+            <xs:enumeration value="BIU"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="AlignType">
+        <xs:restriction base="xs:string">
+            <xs:enumeration value="L"/>
+            <xs:enumeration value="C"/>
+            <xs:enumeration value="R"/>
+            <xs:enumeration value="J"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="ColumnFormatType">
+        <xs:restriction base="xs:string">
+            <xs:enumeration value="string"/>
+            <xs:enumeration value="number"/>
+            <xs:enumeration value="currency"/>
+            <xs:enumeration value="date"/>
+            <xs:enumeration value="percent"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="ColorValueType">
+        <xs:restriction base="xs:int">
+            <xs:minInclusive value="0"/>
+            <xs:maxInclusive value="255"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="HexColorType">
+        <xs:restriction base="xs:string">
+            <xs:pattern value="#[0-9A-Fa-f]{6}"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="NamedColorType">
+        <xs:restriction base="xs:string">
+            <xs:enumeration value="black"/>
+            <xs:enumeration value="white"/>
+            <xs:enumeration value="red"/>
+            <xs:enumeration value="green"/>
+            <xs:enumeration value="blue"/>
+            <xs:enumeration value="gray"/>
+            <xs:enumeration value="lightgray"/>
+            <xs:enumeration value="darkgray"/>
+            <xs:enumeration value="yellow"/>
+            <xs:enumeration value="orange"/>
+            <xs:enumeration value="purple"/>
+            <xs:enumeration value="cyan"/>
+            <xs:enumeration value="magenta"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="ColorAttributeType">
+        <xs:union memberTypes="rg:HexColorType rg:NamedColorType"/>
+    </xs:simpleType>
+
+    <xs:simpleType name="TemplateStringType">
+        <xs:annotation>
+            <xs:documentation>String that may contain Go template expressions like {{.Variable}}</xs:documentation>
+        </xs:annotation>
+        <xs:restriction base="xs:string"/>
+    </xs:simpleType>
+
+    <xs:simpleType name="PositiveDecimal">
+        <xs:restriction base="xs:decimal">
+            <xs:minInclusive value="0"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <!-- ==================== Complex Types ==================== -->
+
+    <xs:complexType name="ReportType">
+        <xs:sequence>
+            <xs:element name="metadata" type="rg:MetadataType" minOccurs="0"/>
+            <xs:element name="document" type="rg:DocumentType"/>
+            <xs:element name="fonts" type="rg:FontsType" minOccurs="0"/>
+            <xs:element name="styles" type="rg:StylesType" minOccurs="0"/>
+            <xs:element name="header" type="rg:HeaderFooterType" minOccurs="0"/>
+            <xs:element name="footer" type="rg:HeaderFooterType" minOccurs="0"/>
+            <xs:element name="sections" type="rg:SectionsType"/>
+        </xs:sequence>
+        <xs:attribute name="version" type="xs:string" use="required"/>
+    </xs:complexType>
+
+    <xs:complexType name="MetadataType">
+        <xs:sequence>
+            <xs:element name="name" type="xs:string"/>
+            <xs:element name="description" type="xs:string" minOccurs="0"/>
+            <xs:element name="author" type="xs:string" minOccurs="0"/>
+            <xs:element name="created" type="xs:dateTime" minOccurs="0"/>
+            <xs:element name="modified" type="xs:dateTime" minOccurs="0"/>
+        </xs:sequence>
+    </xs:complexType>
+
+    <xs:complexType name="DocumentType">
+        <xs:sequence>
+            <xs:element name="margins" type="rg:MarginsType" minOccurs="0"/>
+            <xs:element name="customSize" type="rg:CustomSizeType" minOccurs="0"/>
+        </xs:sequence>
+        <xs:attribute name="orientation" type="rg:OrientationType" default="portrait"/>
+        <xs:attribute name="unit" type="rg:UnitType" default="mm"/>
+        <xs:attribute name="format" type="rg:PageFormatType" default="A4"/>
+    </xs:complexType>
+
+    <xs:complexType name="MarginsType">
+        <xs:attribute name="top" type="rg:PositiveDecimal" default="15"/>
+        <xs:attribute name="right" type="rg:PositiveDecimal" default="15"/>
+        <xs:attribute name="bottom" type="rg:PositiveDecimal" default="15"/>
+        <xs:attribute name="left" type="rg:PositiveDecimal" default="15"/>
+    </xs:complexType>
+
+    <xs:complexType name="CustomSizeType">
+        <xs:attribute name="width" type="rg:PositiveDecimal" use="required"/>
+        <xs:attribute name="height" type="rg:PositiveDecimal" use="required"/>
+    </xs:complexType>
+
+    <xs:complexType name="FontsType">
+        <xs:sequence>
+            <xs:element name="font" type="rg:FontType" maxOccurs="unbounded"/>
+        </xs:sequence>
+    </xs:complexType>
+
+    <xs:complexType name="FontType">
+        <xs:attribute name="name" type="xs:string" use="required"/>
+        <xs:attribute name="family" type="xs:string" use="required"/>
+        <xs:attribute name="style" type="rg:FontStyleType" default=""/>
+        <xs:attribute name="file" type="xs:string" use="required"/>
+    </xs:complexType>
+
+    <xs:complexType name="StylesType">
+        <xs:sequence>
+            <xs:element name="style" type="rg:StyleType" maxOccurs="unbounded"/>
+        </xs:sequence>
+    </xs:complexType>
+
+    <xs:complexType name="StyleType">
+        <xs:sequence>
+            <xs:element name="fontFamily" type="xs:string" minOccurs="0"/>
+            <xs:element name="fontStyle" type="rg:FontStyleType" minOccurs="0"/>
+            <xs:element name="fontSize" type="rg:PositiveDecimal" minOccurs="0"/>
+            <xs:element name="textColor" type="rg:RGBColorType" minOccurs="0"/>
+            <xs:element name="fillColor" type="rg:RGBColorType" minOccurs="0"/>
+            <xs:element name="align" type="rg:AlignType" minOccurs="0"/>
+            <xs:element name="lineHeight" type="rg:PositiveDecimal" minOccurs="0"/>
+        </xs:sequence>
+        <xs:attribute name="name" type="xs:string" use="required"/>
+    </xs:complexType>
+
+    <xs:complexType name="RGBColorType">
+        <xs:attribute name="r" type="rg:ColorValueType" use="required"/>
+        <xs:attribute name="g" type="rg:ColorValueType" use="required"/>
+        <xs:attribute name="b" type="rg:ColorValueType" use="required"/>
+    </xs:complexType>
+
+    <xs:complexType name="HeaderFooterType">
+        <xs:sequence>
+            <xs:choice minOccurs="0" maxOccurs="unbounded">
+                <xs:element name="text" type="rg:TextElementType"/>
+                <xs:element name="image" type="rg:ImageElementType"/>
+                <xs:element name="line" type="rg:LineElementType"/>
+            </xs:choice>
+        </xs:sequence>
+        <xs:attribute name="enabled" type="xs:boolean" default="true"/>
+        <xs:attribute name="height" type="rg:PositiveDecimal" default="15"/>
+    </xs:complexType>
+
+    <xs:complexType name="SectionsType">
+        <xs:sequence>
+            <xs:element name="section" type="rg:SectionType" maxOccurs="unbounded"/>
+        </xs:sequence>
+    </xs:complexType>
+
+    <xs:complexType name="SectionType">
+        <xs:sequence>
+            <xs:choice minOccurs="0" maxOccurs="unbounded">
+                <xs:element name="text" type="rg:TextElementType"/>
+                <xs:element name="image" type="rg:ImageElementType"/>
+                <xs:element name="table" type="rg:TableElementType"/>
+                <xs:element name="list" type="rg:ListElementType"/>
+                <xs:element name="keyValueList" type="rg:KeyValueListElementType"/>
+                <xs:element name="line" type="rg:LineElementType"/>
+                <xs:element name="rectangle" type="rg:RectangleElementType"/>
+                <xs:element name="pageBreak" type="rg:PageBreakElementType"/>
+            </xs:choice>
+        </xs:sequence>
+        <xs:attribute name="name" type="xs:string" use="required"/>
+        <xs:attribute name="pageBreakBefore" type="xs:boolean" default="false"/>
+        <xs:attribute name="pageBreakAfter" type="xs:boolean" default="false"/>
+        <xs:attribute name="condition" type="rg:TemplateStringType"/>
+        <xs:attribute name="loop" type="rg:TemplateStringType"/>
+        <xs:attribute name="loopVariable" type="xs:string"/>
+    </xs:complexType>
+
+    <!-- ==================== Element Types ==================== -->
+
+    <xs:complexType name="TextElementType" mixed="true">
+        <xs:attribute name="style" type="xs:string"/>
+        <xs:attribute name="x" type="xs:decimal"/>
+        <xs:attribute name="y" type="xs:decimal"/>
+        <xs:attribute name="width" type="rg:PositiveDecimal"/>
+        <xs:attribute name="align" type="rg:AlignType"/>
+        <xs:attribute name="spacingAfter" type="rg:PositiveDecimal"/>
+        <xs:attribute name="condition" type="rg:TemplateStringType"/>
+    </xs:complexType>
+
+    <xs:complexType name="ImageElementType">
+        <xs:attribute name="path" type="rg:TemplateStringType" use="required"/>
+        <xs:attribute name="x" type="xs:decimal"/>
+        <xs:attribute name="y" type="xs:decimal"/>
+        <xs:attribute name="width" type="rg:PositiveDecimal" use="required"/>
+        <xs:attribute name="height" type="rg:PositiveDecimal"/>
+        <xs:attribute name="align" type="rg:AlignType"/>
+        <xs:attribute name="spacingAfter" type="rg:PositiveDecimal"/>
+        <xs:attribute name="condition" type="rg:TemplateStringType"/>
+    </xs:complexType>
+
+    <xs:complexType name="TableElementType">
+        <xs:sequence>
+            <xs:element name="alternateRowColor" type="rg:RGBColorType" minOccurs="0"/>
+            <xs:element name="columns" type="rg:ColumnsType"/>
+        </xs:sequence>
+        <xs:attribute name="dataSource" type="rg:TemplateStringType" use="required"/>
+        <xs:attribute name="headerStyle" type="xs:string"/>
+        <xs:attribute name="cellStyle" type="xs:string"/>
+        <xs:attribute name="border" type="xs:boolean" default="true"/>
+        <xs:attribute name="spacingAfter" type="rg:PositiveDecimal"/>
+        <xs:attribute name="condition" type="rg:TemplateStringType"/>
+    </xs:complexType>
+
+    <xs:complexType name="ColumnsType">
+        <xs:sequence>
+            <xs:element name="column" type="rg:ColumnType" maxOccurs="unbounded"/>
+        </xs:sequence>
+    </xs:complexType>
+
+    <xs:complexType name="ColumnType">
+        <xs:attribute name="header" type="xs:string" use="required"/>
+        <xs:attribute name="field" type="xs:string" use="required"/>
+        <xs:attribute name="width" type="rg:PositiveDecimal" use="required"/>
+        <xs:attribute name="align" type="rg:AlignType" default="L"/>
+        <xs:attribute name="format" type="rg:ColumnFormatType" default="string"/>
+    </xs:complexType>
+
+    <xs:complexType name="ListElementType">
+        <xs:attribute name="items" type="rg:TemplateStringType" use="required"/>
+        <xs:attribute name="style" type="xs:string"/>
+        <xs:attribute name="bullet" type="xs:string" default="•"/>
+        <xs:attribute name="indent" type="rg:PositiveDecimal" default="10"/>
+        <xs:attribute name="spacingAfter" type="rg:PositiveDecimal"/>
+        <xs:attribute name="condition" type="rg:TemplateStringType"/>
+    </xs:complexType>
+
+    <xs:complexType name="KeyValueListElementType">
+        <xs:sequence>
+            <xs:element name="item" type="rg:KeyValueItemType" maxOccurs="unbounded"/>
+        </xs:sequence>
+        <xs:attribute name="style" type="xs:string"/>
+        <xs:attribute name="keyWidth" type="rg:PositiveDecimal" default="50"/>
+        <xs:attribute name="spacingAfter" type="rg:PositiveDecimal"/>
+        <xs:attribute name="condition" type="rg:TemplateStringType"/>
+    </xs:complexType>
+
+    <xs:complexType name="KeyValueItemType">
+        <xs:attribute name="key" type="xs:string" use="required"/>
+        <xs:attribute name="value" type="rg:TemplateStringType" use="required"/>
+    </xs:complexType>
+
+    <xs:complexType name="LineElementType">
+        <xs:attribute name="x1" type="xs:decimal" use="required"/>
+        <xs:attribute name="y1" type="xs:decimal" use="required"/>
+        <xs:attribute name="x2" type="xs:decimal" use="required"/>
+        <xs:attribute name="y2" type="xs:decimal" use="required"/>
+        <xs:attribute name="color" type="rg:ColorAttributeType" default="black"/>
+        <xs:attribute name="width" type="rg:PositiveDecimal" default="0.5"/>
+        <xs:attribute name="condition" type="rg:TemplateStringType"/>
+    </xs:complexType>
+
+    <xs:complexType name="RectangleElementType">
+        <xs:sequence>
+            <xs:element name="fillColor" type="rg:RGBColorType" minOccurs="0"/>
+            <xs:element name="borderColor" type="rg:RGBColorType" minOccurs="0"/>
+            <xs:element name="borderWidth" type="rg:PositiveDecimal" minOccurs="0"/>
+        </xs:sequence>
+        <xs:attribute name="x" type="xs:decimal" use="required"/>
+        <xs:attribute name="y" type="xs:decimal" use="required"/>
+        <xs:attribute name="width" type="rg:PositiveDecimal" use="required"/>
+        <xs:attribute name="height" type="rg:PositiveDecimal" use="required"/>
+        <xs:attribute name="radius" type="rg:PositiveDecimal" default="0"/>
+        <xs:attribute name="spacingAfter" type="rg:PositiveDecimal"/>
+        <xs:attribute name="condition" type="rg:TemplateStringType"/>
+    </xs:complexType>
+
+    <xs:complexType name="PageBreakElementType">
+        <xs:attribute name="condition" type="rg:TemplateStringType"/>
+    </xs:complexType>
+
+</xs:schema>

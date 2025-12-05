@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<report xmlns="http://reportgo.io/schema/v1"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://reportgo.io/schema/v1 ../../schemas/reportgo.xsd"
+        version="1.0">
+    
+    <metadata>
+        <name>Monthly Sales Report</name>
+        <description>Template for monthly sales reports</description>
+        <author>ReportGo</author>
+    </metadata>
+    
+    <document orientation="portrait" unit="mm" format="A4">
+        <margins top="15" right="15" bottom="15" left="15"/>
+    </document>
+    
+    <styles>
+        <style name="title">
+            <fontFamily>Arial</fontFamily>
+            <fontStyle>B</fontStyle>
+            <fontSize>24</fontSize>
+            <textColor r="0" g="51" b="102"/>
+            <align>C</align>
+        </style>
+        
+        <style name="heading1">
+            <fontFamily>Arial</fontFamily>
+            <fontStyle>B</fontStyle>
+            <fontSize>16</fontSize>
+            <textColor r="0" g="0" b="0"/>
+            <align>L</align>
+        </style>
+        
+        <style name="body">
+            <fontFamily>Arial</fontFamily>
+            <fontStyle></fontStyle>
+            <fontSize>11</fontSize>
+            <textColor r="0" g="0" b="0"/>
+            <align>L</align>
+            <lineHeight>6</lineHeight>
+        </style>
+        
+        <style name="table_header">
+            <fontFamily>Arial</fontFamily>
+            <fontStyle>B</fontStyle>
+            <fontSize>10</fontSize>
+            <textColor r="255" g="255" b="255"/>
+            <fillColor r="0" g="51" b="102"/>
+            <align>C</align>
+        </style>
+        
+        <style name="table_cell">
+            <fontFamily>Arial</fontFamily>
+            <fontStyle></fontStyle>
+            <fontSize>10</fontSize>
+            <textColor r="0" g="0" b="0"/>
+            <align>L</align>
+        </style>
+    </styles>
+    
+    <sections>
+        <section name="title_section">
+            <text style="title" spacingAfter="10">{{.ReportTitle}}</text>
+            <text style="body" align="C" spacingAfter="20">{{.ReportSubtitle}}</text>
+        </section>
+        
+        <section name="summary_section">
+            <text style="heading1" spacingAfter="5">Executive Summary</text>
+            <text style="body" spacingAfter="15">{{.Summary}}</text>
+            <keyValueList style="body" spacingAfter="20">
+                <item key="Total Revenue" value="{{.TotalRevenue}}"/>
+                <item key="Total Orders" value="{{.TotalOrders}}"/>
+                <item key="Average Order Value" value="{{.AvgOrderValue}}"/>
+            </keyValueList>
+        </section>
+        
+        <section name="data_table_section">
+            <text style="heading1" spacingAfter="5">Sales Details</text>
+            <table dataSource="{{.SalesData}}" headerStyle="table_header" 
+                   cellStyle="table_cell" border="true" spacingAfter="20">
+                <alternateRowColor r="245" g="245" b="245"/>
+                <columns>
+                    <column header="Product" field="product" width="60" align="L"/>
+                    <column header="Quantity" field="quantity" width="30" align="C"/>
+                    <column header="Unit Price" field="unit_price" width="40" align="R" format="currency"/>
+                    <column header="Total" field="total" width="40" align="R" format="currency"/>
+                </columns>
+            </table>
+        </section>
+        
+        <section name="notes_section">
+            <text style="heading1" spacingAfter="5">Notes</text>
+            <list style="body" items="{{.Notes}}" bullet="•" indent="10" spacingAfter="15"/>
+        </section>
+    </sections>
+</report>

@@ -1,0 +1,31 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug ReportGo CLI",
+      "type": "go",
+      "request": "launch",
+      "mode": "debug",
+      "program": "${workspaceFolder}/cmd/reportgo",
+      "args": [
+        "-template", "${workspaceFolder}/templates/examples/report.xml",
+        "-data", "${workspaceFolder}/examples/simple/data.json",
+        "-output", "${workspaceFolder}/output.pdf"
+      ],
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "Debug ReportGo CLI (Payslip)",
+      "type": "go",
+      "request": "launch",
+      "mode": "debug",
+      "program": "${workspaceFolder}/cmd/reportgo",
+      "args": [
+        "-template", "${workspaceFolder}/templates/examples/payslip.xml",
+        "-data", "${workspaceFolder}/examples/payslip/data.json",
+        "-output", "${workspaceFolder}/payslip.pdf"
+      ],
+      "cwd": "${workspaceFolder}"
+    }
+  ]
+}

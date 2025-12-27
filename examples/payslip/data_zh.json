@@ -1,0 +1,44 @@
+{
+  "CompanyName": "宏達企業股份有限公司",
+  "CompanyAddress": "台北市信義區信義路五段7號45樓",
+  "CompanyContact": "電話：(02) 2345-6789 | 電郵：hr@acmecorp.com",
+  
+  "PayPeriod": "2025年11月1日 - 2025年11月30日",
+  "PayDate": "2025年12月5日",
+  
+  "EmployeeID": "EMP-2024-0042",
+  "EmployeeName": "張大明",
+  "Department": "工程部",
+  "Position": "資深軟體工程師",
+  
+  "Earnings": [
+    {"description": "基本薪資", "units": "-", "rate": "-", "amount": 8500.00},
+    {"description": "加班費 (1.5倍)", "units": "12", "rate": 75.00, "amount": 900.00},
+    {"description": "專案獎金", "units": "-", "rate": "-", "amount": 500.00},
+    {"description": "交通津貼", "units": "-", "rate": "-", "amount": 250.00}
+  ],
+  "TotalEarnings": "$10,150.00",
+  
+  "Deductions": [
+    {"description": "所得稅", "amount": 1522.50},
+    {"description": "勞工保險費", "amount": 507.50},
+    {"description": "全民健康保險費", "amount": 629.30},
+    {"description": "退休金提撥", "amount": 147.18},
+    {"description": "團體保險（員工自付額）", "amount": 185.00},
+    {"description": "退休金自提（6%）", "amount": 609.00}
+  ],
+  "TotalDeductions": "$3,600.48",
+  
+  "NetPay": "$6,549.52",
+  
+  "BankName": "台灣銀行",
+  "AccountNumber": "****4567",
+  "PaymentMethod": "直接轉帳",
+  
+  "YTDGross": "$111,650.00",
+  "YTDTax": "$22,330.00",
+  "YTDDeductions": "$39,605.28",
+  "YTDNet": "$72,044.72",
+  
+  "HREmail": "hr@acmecorp.com"
+}

@@ -1,0 +1,175 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<report xmlns="http://reportgo.io/schema/v1"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://reportgo.io/schema/v1 ../../schemas/reportgo.xsd"
+        version="1.0">
+    
+    <metadata>
+        <name>員工薪資單</name>
+        <description>員工薪資單範本</description>
+        <author>ReportGo</author>
+    </metadata>
+    
+    <document orientation="portrait" unit="mm" format="A4">
+        <margins top="15" right="15" bottom="15" left="15"/>
+    </document>
+    
+    <fonts>
+        <font name="arialunicode" family="Arial Unicode MS" style="" file="/System/Library/Fonts/Supplemental/Arial Unicode.ttf"/>
+    </fonts>
+    
+    <styles>
+        <style name="company_name">
+            <fontFamily>Arial Unicode MS</fontFamily>
+            <fontSize>16</fontSize>
+            <textColor r="0" g="51" b="102"/>
+            <align>C</align>
+        </style>
+        
+        <style name="title">
+            <fontFamily>Arial Unicode MS</fontFamily>
+            <fontSize>12</fontSize>
+            <textColor r="0" g="0" b="0"/>
+            <align>C</align>
+        </style>
+        
+        <style name="section_header">
+            <fontFamily>Arial Unicode MS</fontFamily>
+            <fontSize>10</fontSize>
+            <textColor r="255" g="255" b="255"/>
+            <fillColor r="0" g="51" b="102"/>
+            <align>L</align>
+        </style>
+        
+        <style name="label">
+            <fontFamily>Arial Unicode MS</fontFamily>
+            <fontSize>9</fontSize>
+            <textColor r="80" g="80" b="80"/>
+            <align>L</align>
+        </style>
+        
+        <style name="value">
+            <fontFamily>Arial Unicode MS</fontFamily>
+            <fontSize>9</fontSize>
+            <textColor r="0" g="0" b="0"/>
+            <align>L</align>
+        </style>
+        
+        <style name="table_header">
+            <fontFamily>Arial Unicode MS</fontFamily>
+            <fontSize>8</fontSize>
+            <textColor r="255" g="255" b="255"/>
+            <fillColor r="70" g="70" b="70"/>
+            <align>C</align>
+        </style>
+        
+        <style name="table_cell">
+            <fontFamily>Arial Unicode MS</fontFamily>
+            <fontSize>8</fontSize>
+            <textColor r="0" g="0" b="0"/>
+            <align>L</align>
+        </style>
+        
+        <style name="total_row">
+            <fontFamily>Arial Unicode MS</fontFamily>
+            <fontSize>9</fontSize>
+            <textColor r="0" g="0" b="0"/>
+            <align>R</align>
+        </style>
+        
+        <style name="net_pay">
+            <fontFamily>Arial Unicode MS</fontFamily>
+            <fontSize>11</fontSize>
+            <textColor r="0" g="102" b="0"/>
+            <align>C</align>
+        </style>
+        
+        <style name="footer_text">
+            <fontFamily>Arial Unicode MS</fontFamily>
+            <fontSize>8</fontSize>
+            <textColor r="128" g="128" b="128"/>
+            <align>C</align>
+        </style>
+    </styles>
+    
+    <sections>
+        <!-- 公司標頭 -->
+        <section name="header_section">
+            <image path="templates/examples/Acme-corp.png" width="50" height="15" align="C" spacingAfter="2"/>
+            <text style="label" align="C" spacingAfter="1">{{.CompanyAddress}}</text>
+            <text style="label" align="C" spacingAfter="5">{{.CompanyContact}}</text>
+            <line x1="15" y1="0" x2="195" y2="0" width="0.5" color="r:0 g:51 b:102"/>
+            <text style="title" spacingAfter="5">薪資單</text>
+        </section>
+        
+        <!-- 薪資期間及員工資訊 -->
+        <section name="info_section">
+            <keyValueList style="value" keyWidth="35" valueWidth="55" spacingAfter="1">
+                <item key="薪資期間：" value="{{.PayPeriod}}"/>
+                <item key="發薪日期：" value="{{.PayDate}}"/>
+            </keyValueList>
+            <line x1="15" y1="0" x2="195" y2="0" width="0.2" color="r:200 g:200 b:200"/>
+            <keyValueList style="value" keyWidth="35" valueWidth="55" spacingAfter="5">
+                <item key="員工編號：" value="{{.EmployeeID}}"/>
+                <item key="姓名：" value="{{.EmployeeName}}"/>
+                <item key="部門：" value="{{.Department}}"/>
+                <item key="職位：" value="{{.Position}}"/>
+            </keyValueList>
+        </section>
+        
+        <!-- 收入項目 -->
+        <section name="earnings_section">
+            <text style="section_header" width="180" spacingAfter="1">  收入項目</text>
+            <table dataSource="{{.Earnings}}" headerStyle="table_header" 
+                   cellStyle="table_cell" border="true" spacingAfter="1">
+                <columns>
+                    <column header="項目說明" field="description" width="90" align="L"/>
+                    <column header="單位" field="units" width="25" align="C"/>
+                    <column header="費率" field="rate" width="30" align="R" format="currency"/>
+                    <column header="金額" field="amount" width="35" align="R" format="currency"/>
+                </columns>
+            </table>
+            <keyValueList style="total_row" keyWidth="145" valueWidth="35" valueAlign="R" spacingAfter="5">
+                <item key="收入總計：" value="{{.TotalEarnings}}"/>
+            </keyValueList>
+        </section>
+        
+        <!-- 扣除項目 -->
+        <section name="deductions_section">
+            <text style="section_header" width="180" spacingAfter="1">  扣除項目</text>
+            <table dataSource="{{.Deductions}}" headerStyle="table_header" 
+                   cellStyle="table_cell" border="true" spacingAfter="1">
+                <columns>
+                    <column header="項目說明" field="description" width="145" align="L"/>
+                    <column header="金額" field="amount" width="35" align="R" format="currency"/>
+                </columns>
+            </table>
+            <keyValueList style="total_row" keyWidth="145" valueWidth="35" valueAlign="R" spacingAfter="5">
+                <item key="扣除總計：" value="{{.TotalDeductions}}"/>
+            </keyValueList>
+        </section>
+        
+        <!-- 實領金額 -->
+        <section name="net_pay_section">
+            <rectangle x="15" y="0" width="180" height="10" fillColor="r:240 g:248 b:255" borderColor="r:0 g:51 b:102"/>
+            <text style="net_pay" width="180" spacingAfter="8">實領金額：{{.NetPay}}</text>
+        </section>
+        
+        <!-- 付款資訊 -->
+        <section name="payment_section">
+            <text style="section_header" width="180" spacingAfter="1">  付款資訊</text>
+            <keyValueList style="value" keyWidth="45" valueWidth="135" spacingAfter="5">
+                <item key="銀行：" value="{{.BankName}}"/>
+                <item key="帳號：" value="{{.AccountNumber}}"/>
+                <item key="付款方式：" value="{{.PaymentMethod}}"/>
+            </keyValueList>
+        </section>
+        
+        <!-- 頁尾 -->
+        <section name="footer_section">
+            <line x1="15" y1="0" x2="195" y2="0" width="0.2" color="r:200 g:200 b:200"/>
+            <text style="footer_text" spacingAfter="1">本文件由電腦產生，無需簽名。</text>
+            <text style="footer_text">如有任何問題，請聯絡人力資源部 {{.HREmail}}</text>
+        </section>
+    </sections>
+</report>

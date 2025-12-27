@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<report xmlns="http://reportgo.io/schema/v1"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://reportgo.io/schema/v1 ../../schemas/reportgo.xsd"
+        version="1.0">
+    
+    <metadata>
+        <name>月度銷售報告</name>
+        <description>月度銷售報告範本</description>
+        <author>ReportGo</author>
+    </metadata>
+    
+    <document orientation="portrait" unit="mm" format="A4">
+        <margins top="15" right="15" bottom="15" left="15"/>
+    </document>
+    
+    <fonts>
+        <font name="notosanstc" family="Noto Sans TC" style="" file="fonts/Noto_Sans_TC/static/NotoSansTC-Regular.ttf"/>
+    </fonts>
+    
+    <styles>
+        <style name="title">
+            <fontFamily>Noto Sans TC</fontFamily>
+            <fontStyle></fontStyle>
+            <fontSize>24</fontSize>
+            <textColor r="0" g="51" b="102"/>
+            <align>C</align>
+        </style>
+        
+        <style name="heading1">
+            <fontFamily>Noto Sans TC</fontFamily>
+            <fontStyle></fontStyle>
+            <fontSize>16</fontSize>
+            <textColor r="0" g="0" b="0"/>
+            <align>L</align>
+        </style>
+        
+        <style name="body">
+            <fontFamily>Noto Sans TC</fontFamily>
+            <fontStyle></fontStyle>
+            <fontSize>11</fontSize>
+            <textColor r="0" g="0" b="0"/>
+            <align>L</align>
+            <lineHeight>6</lineHeight>
+        </style>
+        
+        <style name="table_header">
+            <fontFamily>Noto Sans TC</fontFamily>
+            <fontStyle></fontStyle>
+            <fontSize>10</fontSize>
+            <textColor r="255" g="255" b="255"/>
+            <fillColor r="0" g="51" b="102"/>
+            <align>C</align>
+        </style>
+        
+        <style name="table_cell">
+            <fontFamily>Noto Sans TC</fontFamily>
+            <fontStyle></fontStyle>
+            <fontSize>10</fontSize>
+            <textColor r="0" g="0" b="0"/>
+            <align>L</align>
+        </style>
+    </styles>
+    
+    <sections>
+        <section name="title_section">
+            <text style="title" spacingAfter="10">{{.ReportTitle}}</text>
+            <text style="body" align="C" spacingAfter="20">{{.ReportSubtitle}}</text>
+        </section>
+        
+        <section name="summary_section">
+            <text style="heading1" spacingAfter="5">執行摘要</text>
+            <text style="body" spacingAfter="15" wrap="true">{{.Summary}}</text>
+            <keyValueList style="body" spacingAfter="20">
+                <item key="總營收" value="{{.TotalRevenue}}"/>
+                <item key="總訂單數" value="{{.TotalOrders}}"/>
+                <item key="平均訂單金額" value="{{.AvgOrderValue}}"/>
+            </keyValueList>
+        </section>
+        
+        <section name="data_table_section">
+            <text style="heading1" spacingAfter="5">銷售明細</text>
+            <table dataSource="{{.SalesData}}" headerStyle="table_header" 
+                   cellStyle="table_cell" border="true" spacingAfter="20">
+                <alternateRowColor r="245" g="245" b="245"/>
+                <columns>
+                    <column header="產品" field="product" width="60" align="L"/>
+                    <column header="數量" field="quantity" width="30" align="C"/>
+                    <column header="單價" field="unit_price" width="40" align="R" format="currency"/>
+                    <column header="合計" field="total" width="40" align="R" format="currency"/>
+                </columns>
+            </table>
+        </section>
+        
+        <section name="notes_section">
+            <text style="heading1" spacingAfter="5">備註</text>
+            <list style="body" items="{{.Notes}}" bullet="•" indent="10" spacingAfter="15"/>
+        </section>
+    </sections>
+</report>

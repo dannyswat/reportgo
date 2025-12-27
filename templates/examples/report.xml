@@ -15,12 +15,12 @@
     </document>
     
     <fonts>
-        <font name="arialunicode" family="Arial Unicode MS" style="" file="/System/Library/Fonts/Supplemental/Arial Unicode.ttf"/>
+        <font name="notosans" family="Noto Sans" style="" file="fonts/Noto_Sans/static/NotoSans-Regular.ttf"/>
     </fonts>
     
     <styles>
         <style name="title">
-            <fontFamily>Arial Unicode MS</fontFamily>
+            <fontFamily>Noto Sans</fontFamily>
             <fontStyle></fontStyle>
             <fontSize>24</fontSize>
             <textColor r="0" g="51" b="102"/>
@@ -28,7 +28,7 @@
         </style>
         
         <style name="heading1">
-            <fontFamily>Arial Unicode MS</fontFamily>
+            <fontFamily>Noto Sans</fontFamily>
             <fontStyle></fontStyle>
             <fontSize>16</fontSize>
             <textColor r="0" g="0" b="0"/>
@@ -36,7 +36,7 @@
         </style>
         
         <style name="body">
-            <fontFamily>Arial Unicode MS</fontFamily>
+            <fontFamily>Noto Sans</fontFamily>
             <fontStyle></fontStyle>
             <fontSize>11</fontSize>
             <textColor r="0" g="0" b="0"/>
@@ -45,7 +45,7 @@
         </style>
         
         <style name="table_header">
-            <fontFamily>Arial Unicode MS</fontFamily>
+            <fontFamily>Noto Sans</fontFamily>
             <fontStyle></fontStyle>
             <fontSize>10</fontSize>
             <textColor r="255" g="255" b="255"/>
@@ -54,7 +54,7 @@
         </style>
         
         <style name="table_cell">
-            <fontFamily>Arial Unicode MS</fontFamily>
+            <fontFamily>Noto Sans</fontFamily>
             <fontStyle></fontStyle>
             <fontSize>10</fontSize>
             <textColor r="0" g="0" b="0"/>

@@ -1,0 +1,19 @@
+{
+  "ReportTitle": "月度銷售報告",
+  "ReportSubtitle": "2025年11月",
+  "Summary": "本報告詳細介紹了2025年11月的銷售業績概況。總體營收較前月增長15%。",
+  "TotalRevenue": "$125,450.00",
+  "TotalOrders": "1,234",
+  "AvgOrderValue": "$101.66",
+  "SalesData": [
+    {"product": "小工具 A", "quantity": 500, "unit_price": 25.00, "total": 12500.00},
+    {"product": "小工具 B", "quantity": 350, "unit_price": 45.00, "total": 15750.00},
+    {"product": "小工具 C", "quantity": 200, "unit_price": 75.00, "total": 15000.00},
+    {"product": "小工具 D", "quantity": 150, "unit_price": 120.00, "total": 18000.00}
+  ],
+  "Notes": [
+    "銷售額超過目標10%",
+    "新產品上市貢獻了營收的25%",
+    "客戶保留率提升至85%"
+  ]
+}

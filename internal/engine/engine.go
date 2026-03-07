@@ -5,10 +5,13 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"reflect"
+	"strconv"
 	"strings"
 	"text/template"
+	"time"
 
 	"github.com/dannyswat/reportgo/internal/models"
 	"github.com/phpdave11/gofpdf"
@@ -22,6 +25,7 @@ type Engine struct {
 	styles         map[string]*models.Style
 	funcMap        template.FuncMap
 	flowOffsetLeft float64
+	embeddedFonts  []models.EmbeddedFont
 }
 
 // New creates a new Engine instance.
@@ -41,6 +45,21 @@ func (e *Engine) SetReport(report *models.Report) {
 // SetData sets the data for template rendering.
 func (e *Engine) SetData(data map[string]interface{}) {
 	e.data = data
+}
+
+// AddFuncMap merges additional template functions into the engine.
+func (e *Engine) AddFuncMap(funcs template.FuncMap) {
+	if len(funcs) == 0 {
+		return
+	}
+	for name, fn := range funcs {
+		e.funcMap[name] = fn
+	}
+}
+
+// AddEmbeddedFont registers a font from in-memory bytes.
+func (e *Engine) AddEmbeddedFont(font models.EmbeddedFont) {
+	e.embeddedFonts = append(e.embeddedFonts, font)
 }
 
 // Generate generates the PDF and writes it to the given writer.
@@ -117,9 +136,21 @@ func (e *Engine) initPDF() {
 		e.pdf.SetAutoPageBreak(true, doc.Margins.Bottom)
 	}
 
+	loadedFonts := make(map[string]bool)
+	for _, font := range e.embeddedFonts {
+		if len(font.Data) == 0 {
+			continue
+		}
+		e.pdf.AddUTF8FontFromBytes(font.Family, font.Style, font.Data)
+		loadedFonts[fontKey(font.Family, font.Style)] = true
+	}
+
 	// Load custom fonts
 	if e.report.Fonts != nil {
 		for _, font := range e.report.Fonts.Fonts {
+			if loadedFonts[fontKey(font.Family, font.Style)] {
+				continue
+			}
 			// Read font file ourselves to avoid gofpdf path.Join bug with absolute paths
 			fontBytes, err := os.ReadFile(font.File)
 			if err != nil {
@@ -130,6 +161,10 @@ func (e *Engine) initPDF() {
 			e.pdf.AddUTF8FontFromBytes(font.Family, font.Style, fontBytes)
 		}
 	}
+}
+
+func fontKey(family, style string) string {
+	return family + "|" + style
 }
 
 // buildStyleMap builds a map of style names to styles for quick lookup.
@@ -529,15 +564,24 @@ func (e *Engine) applyStyle(styleName string) {
 // defaultFuncMap returns the default template function map.
 func defaultFuncMap() template.FuncMap {
 	return template.FuncMap{
-		"upper":   strings.ToUpper,
-		"lower":   strings.ToLower,
-		"title":   strings.Title,
-		"trim":    strings.TrimSpace,
-		"default": defaultValue,
-		"add":     add,
-		"sub":     sub,
-		"mul":     mul,
-		"div":     div,
+		"upper":          strings.ToUpper,
+		"lower":          strings.ToLower,
+		"title":          strings.Title,
+		"trim":           strings.TrimSpace,
+		"default":        defaultValue,
+		"add":            add,
+		"sub":            sub,
+		"mul":            mul,
+		"div":            div,
+		"join":           strings.Join,
+		"replace":        strings.ReplaceAll,
+		"ifelse":         ifElse,
+		"truncate":       truncate,
+		"formatDate":     formatDate,
+		"dateFormat":     formatDate,
+		"formatNumber":   formatNumberValue,
+		"formatCurrency": formatCurrencyValue,
+		"formatPercent":  formatPercentValue,
 	}
 }
 
@@ -556,4 +600,156 @@ func div(a, b float64) float64 {
 		return 0
 	}
 	return a / b
+}
+
+func ifElse(condition interface{}, trueValue, falseValue interface{}) interface{} {
+	if isTruthyValue(condition) {
+		return trueValue
+	}
+	return falseValue
+}
+
+func truncate(value string, limit int) string {
+	if limit <= 0 || len(value) <= limit {
+		return value
+	}
+	if limit <= 3 {
+		return value[:limit]
+	}
+	return value[:limit-3] + "..."
+}
+
+func formatDate(value interface{}, layout string) string {
+	text := strings.TrimSpace(fmt.Sprint(value))
+	if text == "" {
+		return ""
+	}
+
+	layouts := []string{
+		time.RFC3339,
+		time.RFC3339Nano,
+		"2006-01-02",
+		"2006-01-02 15:04:05",
+		"2006-01-02 15:04",
+		"02 Jan 2006",
+	}
+
+	for _, candidate := range layouts {
+		if parsed, err := time.Parse(candidate, text); err == nil {
+			return parsed.Format(layout)
+		}
+	}
+
+	return text
+}
+
+func formatNumberValue(value interface{}, decimals int) string {
+	floatValue, ok := toFloat64(value)
+	if !ok {
+		return fmt.Sprint(value)
+	}
+	if decimals < 0 {
+		decimals = 0
+	}
+	return strconv.FormatFloat(floatValue, 'f', decimals, 64)
+}
+
+func formatCurrencyValue(value interface{}, symbol ...string) string {
+	prefix := "$"
+	if len(symbol) > 0 && symbol[0] != "" {
+		prefix = symbol[0]
+	}
+	return prefix + formatNumberValue(value, 2)
+}
+
+func formatPercentValue(value interface{}, decimals ...int) string {
+	floatValue, ok := toFloat64(value)
+	if !ok {
+		return fmt.Sprint(value)
+	}
+	precision := 2
+	if len(decimals) > 0 {
+		precision = decimals[0]
+	}
+	return formatNumberValue(floatValue*100, precision) + "%"
+}
+
+func isTruthyValue(value interface{}) bool {
+	if value == nil {
+		return false
+	}
+
+	switch v := value.(type) {
+	case bool:
+		return v
+	case string:
+		trimmed := strings.ToLower(strings.TrimSpace(v))
+		return trimmed != "" && trimmed != "0" && trimmed != "false" && trimmed != "nil" && trimmed != "null" && trimmed != "<no value>"
+	case int:
+		return v != 0
+	case int8:
+		return v != 0
+	case int16:
+		return v != 0
+	case int32:
+		return v != 0
+	case int64:
+		return v != 0
+	case uint:
+		return v != 0
+	case uint8:
+		return v != 0
+	case uint16:
+		return v != 0
+	case uint32:
+		return v != 0
+	case uint64:
+		return v != 0
+	case float32:
+		return v != 0
+	case float64:
+		return v != 0
+	default:
+		return true
+	}
+}
+
+func toFloat64(value interface{}) (float64, bool) {
+	switch v := value.(type) {
+	case float64:
+		return v, true
+	case float32:
+		return float64(v), true
+	case int:
+		return float64(v), true
+	case int8:
+		return float64(v), true
+	case int16:
+		return float64(v), true
+	case int32:
+		return float64(v), true
+	case int64:
+		return float64(v), true
+	case uint:
+		return float64(v), true
+	case uint8:
+		return float64(v), true
+	case uint16:
+		return float64(v), true
+	case uint32:
+		return float64(v), true
+	case uint64:
+		if v > math.MaxInt64 {
+			return 0, false
+		}
+		return float64(v), true
+	case string:
+		parsed, err := strconv.ParseFloat(strings.TrimSpace(v), 64)
+		if err != nil {
+			return 0, false
+		}
+		return parsed, true
+	default:
+		return 0, false
+	}
 }

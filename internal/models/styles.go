@@ -16,6 +16,14 @@ type Font struct {
 	File   string `xml:"file,attr"`
 }
 
+// EmbeddedFont represents an in-memory font registration.
+type EmbeddedFont struct {
+	Name   string
+	Family string
+	Style  string
+	Data   []byte
+}
+
 // Styles contains style definitions.
 type Styles struct {
 	Styles []Style `xml:"style"`
@@ -24,6 +32,7 @@ type Styles struct {
 // Style represents a reusable style definition.
 type Style struct {
 	Name       string    `xml:"name,attr"`
+	Extends    string    `xml:"extends,attr"`
 	FontFamily string    `xml:"fontFamily"`
 	FontStyle  string    `xml:"fontStyle"`
 	FontSize   float64   `xml:"fontSize"`
@@ -31,6 +40,37 @@ type Style struct {
 	FillColor  *RGBColor `xml:"fillColor"`
 	Align      string    `xml:"align"`
 	LineHeight float64   `xml:"lineHeight"`
+}
+
+// Merge overlays non-zero values from the child style on top of the receiver.
+func (s Style) Merge(child Style) Style {
+	merged := s
+	merged.Name = child.Name
+	merged.Extends = child.Extends
+
+	if child.FontFamily != "" {
+		merged.FontFamily = child.FontFamily
+	}
+	if child.FontStyle != "" {
+		merged.FontStyle = child.FontStyle
+	}
+	if child.FontSize > 0 {
+		merged.FontSize = child.FontSize
+	}
+	if child.TextColor != nil {
+		merged.TextColor = child.TextColor
+	}
+	if child.FillColor != nil {
+		merged.FillColor = child.FillColor
+	}
+	if child.Align != "" {
+		merged.Align = child.Align
+	}
+	if child.LineHeight > 0 {
+		merged.LineHeight = child.LineHeight
+	}
+
+	return merged
 }
 
 // RGBColor represents an RGB color value.

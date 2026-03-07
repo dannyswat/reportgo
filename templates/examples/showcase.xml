@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<report xmlns="http://reportgo.io/schema/v1"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://reportgo.io/schema/v1 ../../schemas/reportgo.xsd"
+        version="1.0">
+
+    <metadata>
+        <name>Enhancement Showcase</name>
+        <description>Demonstrates style inheritance, rows, spacers, loops, conditions, padding, and template helpers.</description>
+        <author>ReportGo</author>
+    </metadata>
+
+    <document orientation="portrait" unit="mm" format="A4">
+        <margins top="15" right="15" bottom="15" left="15"/>
+    </document>
+
+    <styles>
+        <style name="base_text">
+            <fontFamily>Noto Sans</fontFamily>
+            <fontSize>10</fontSize>
+            <textColor r="45" g="45" b="45"/>
+            <align>L</align>
+            <lineHeight>5</lineHeight>
+        </style>
+
+        <style name="eyebrow" extends="base_text">
+            <fontSize>8</fontSize>
+            <textColor r="135" g="92" b="61"/>
+        </style>
+
+        <style name="title" extends="base_text">
+            <fontStyle>B</fontStyle>
+            <fontSize>22</fontSize>
+            <textColor r="30" g="30" b="30"/>
+            <lineHeight>8</lineHeight>
+        </style>
+
+        <style name="section_title" extends="base_text">
+            <fontStyle>B</fontStyle>
+            <fontSize>12</fontSize>
+            <textColor r="57" g="57" b="57"/>
+        </style>
+
+        <style name="muted" extends="base_text">
+            <textColor r="112" g="112" b="112"/>
+        </style>
+
+        <style name="accent" extends="base_text">
+            <fontStyle>B</fontStyle>
+            <textColor r="135" g="92" b="61"/>
+        </style>
+
+        <style name="small_caps" extends="base_text">
+            <fontStyle>B</fontStyle>
+            <fontSize>8</fontSize>
+            <textColor r="107" g="107" b="107"/>
+        </style>
+
+        <style name="table_header" extends="base_text">
+            <fontStyle>B</fontStyle>
+            <fontSize>9</fontSize>
+            <textColor r="255" g="255" b="255"/>
+            <fillColor r="88" g="72" b="58"/>
+            <align>C</align>
+        </style>
+
+        <style name="table_cell" extends="base_text">
+            <fontSize>9</fontSize>
+        </style>
+    </styles>
+
+    <sections>
+        <section name="hero">
+            <text style="eyebrow" spacingAfter="2">{{badge .Theme}}</text>
+            <row spacingAfter="2">
+                <text style="title" width="130">{{.Title}}</text>
+                <text style="muted" width="50" align="R">{{formatDate .GeneratedAt "02 Jan 2006"}}</text>
+            </row>
+            <text style="muted" wrap="true" spacingAfter="4">{{.ExecutiveSummary}}</text>
+            <line x1="15" y1="0" x2="-15" y2="0" width="0.3" color="#D9D1C7" spacingAfter="5"/>
+        </section>
+
+        <section name="overview">
+            <text style="section_title" spacingAfter="3">Overview</text>
+            <row spacingAfter="2">
+                <text style="small_caps">Revenue</text>
+                <text style="accent" align="R">{{formatCurrency .Revenue "$"}}</text>
+            </row>
+            <row spacingAfter="2">
+                <text style="small_caps">Delivery Rate</text>
+                <text style="accent" align="R">{{formatPercent .DeliveryRate 1}}</text>
+            </row>
+            <row spacingAfter="4">
+                <text style="small_caps">Product Focus</text>
+                <text style="muted" align="R">{{replace .PrimarySlug "-" " / "}}</text>
+            </row>
+        </section>
+
+        <section name="highlights_heading">
+            <text style="section_title" spacingAfter="2">Highlights</text>
+        </section>
+
+        <section name="highlights" paddingLeft="6">
+            <spacer height="1"/>
+            <list style="base_text" items="{{.Highlights}}" bullet="-" indent="6" spacingAfter="4"/>
+        </section>
+
+        <section name="project_intro">
+            <text style="section_title" spacingAfter="3">Projects</text>
+        </section>
+
+        <section name="project_cards" loop="{{.Projects}}" loopVariable="project" paddingLeft="4" condition="{{.project.Visible}}">
+            <row spacingAfter="1">
+                <text style="accent">{{title .project.Name}}</text>
+                <text style="muted" align="R">Updated {{dateFormat .project.LastUpdated "Jan 2006"}}</text>
+            </row>
+            <row spacingAfter="2" condition="{{.project.Featured}}">
+                <text style="eyebrow" x="4" y="1">{{badge "featured"}}</text>
+            </row>
+            <text style="base_text" wrap="true" spacingAfter="1">{{.project.Description}}</text>
+            <row spacingAfter="3">
+                <text style="small_caps">{{join .project.Tags " • "}}</text>
+                <text style="muted" align="R">{{ifelse .project.Featured "Priority" "Standard"}}</text>
+            </row>
+            <line x1="15" y1="0" x2="-15" y2="0" width="0.2" color="#E8E1D9" spacingAfter="3"/>
+        </section>
+
+        <section name="metrics_table">
+            <text style="section_title" spacingAfter="3">Operational Metrics</text>
+            <table dataSource="{{.Metrics}}" headerStyle="table_header" cellStyle="table_cell" border="true" spacingAfter="4">
+                <alternateRowColor r="248" g="245" b="240"/>
+                <columns>
+                    <column header="Metric" field="label" width="80" align="L"/>
+                    <column header="Owner" field="owner" width="45" align="L"/>
+                    <column header="Value" field="value" width="25" align="R"/>
+                    <column header="Delta" field="delta" width="30" align="R"/>
+                </columns>
+            </table>
+        </section>
+
+        <section name="confidential" condition="{{.ShowConfidential}}">
+            <text style="section_title" spacingAfter="2">Confidential Notes</text>
+            <text style="base_text" wrap="true">{{default .ConfidentialNote "No confidential note provided."}}</text>
+        </section>
+    </sections>
+</report>

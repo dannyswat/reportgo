@@ -8,6 +8,7 @@ A Go-based PDF report generator that creates professional PDF reports from XML t
 - **Data Binding** - Use Go template syntax for dynamic content
 - **Rich Elements** - Text, images, tables, lists, lines, rectangles
 - **Styling** - Reusable styles with fonts, colors, and alignment
+- **Style Inheritance** - Derive styles with `extends` to avoid duplication
 - **Headers/Footers** - Automatic page headers and footers
 - **Page Management** - Automatic page breaks and custom margins
 
@@ -23,12 +24,20 @@ go get github.com/dannyswat/reportgo
 package main
 
 import (
+    "bytes"
     "log"
+    "strings"
+    "text/template"
+
     "github.com/dannyswat/reportgo/pkg/reportgo"
 )
 
 func main() {
-    engine := reportgo.New()
+    engine := reportgo.New(
+        reportgo.WithFuncMap(template.FuncMap{
+            "shout": func(input string) string { return strings.ToUpper(input) + "!" },
+        }),
+    )
     
     // Load template
     if err := engine.LoadTemplate("template.xml"); err != nil {
@@ -48,6 +57,15 @@ func main() {
     if err := engine.Generate(data, "output.pdf"); err != nil {
         log.Fatal(err)
     }
+}
+```
+
+You can also render directly to an `io.Writer` and pass inline data in the same call:
+
+```go
+var output bytes.Buffer
+if err := engine.GenerateToWriter(&output, map[string]interface{}{"Title": "Writer Output"}); err != nil {
+    log.Fatal(err)
 }
 ```
 
@@ -92,6 +110,10 @@ Templates use XML format with XSD schema validation. See [DESIGN.md](DESIGN.md) 
             <fontFamily>Arial</fontFamily>
             <fontSize>24</fontSize>
         </style>
+
+        <style name="title_emphasis" extends="title">
+            <fontStyle>B</fontStyle>
+        </style>
     </styles>
     
     <sections>
@@ -101,6 +123,16 @@ Templates use XML format with XSD schema validation. See [DESIGN.md](DESIGN.md) 
     </sections>
 </report>
 ```
+
+## Template Functions
+
+Built-in helpers include `upper`, `lower`, `title`, `trim`, `default`, `add`, `sub`, `mul`, `div`, `join`, `replace`, `ifelse`, `truncate`, `formatDate`, `dateFormat`, `formatNumber`, `formatCurrency`, and `formatPercent`.
+
+Applications can register additional helpers with `reportgo.WithFuncMap(...)` or `engine.AddFuncMap(...)`.
+
+## Embedded Fonts
+
+Applications can register in-memory fonts with `reportgo.WithEmbeddedFont(...)` or `engine.AddEmbeddedFont(...)`. Embedded fonts are loaded before file-based fonts from the template, so they can be used in environments where direct font file access is inconvenient.
 
 ## Dependencies
 

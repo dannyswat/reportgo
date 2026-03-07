@@ -27,6 +27,9 @@ func ParseTemplateFromBytes(data []byte) (*models.Report, error) {
 	}
 
 	applyDefaults(&report)
+	if err := resolveStyleInheritance(&report); err != nil {
+		return nil, err
+	}
 
 	return &report, nil
 }
@@ -64,4 +67,60 @@ func applyDefaults(report *models.Report) {
 	if report.Footer != nil && report.Footer.Height == 0 {
 		report.Footer.Height = 15
 	}
+}
+
+func resolveStyleInheritance(report *models.Report) error {
+	if report.Styles == nil {
+		return nil
+	}
+
+	styleIndex := make(map[string]models.Style, len(report.Styles.Styles))
+	for _, style := range report.Styles.Styles {
+		styleIndex[style.Name] = style
+	}
+
+	resolved := make(map[string]models.Style, len(styleIndex))
+	visiting := make(map[string]bool, len(styleIndex))
+
+	var resolve func(string) (models.Style, error)
+	resolve = func(name string) (models.Style, error) {
+		if style, ok := resolved[name]; ok {
+			return style, nil
+		}
+
+		style, ok := styleIndex[name]
+		if !ok {
+			return models.Style{}, fmt.Errorf("style %q extends unknown style", name)
+		}
+		if visiting[name] {
+			return models.Style{}, fmt.Errorf("style inheritance cycle detected at %q", name)
+		}
+
+		visiting[name] = true
+		defer delete(visiting, name)
+
+		if style.Extends == "" {
+			resolved[name] = style
+			return style, nil
+		}
+
+		parent, err := resolve(style.Extends)
+		if err != nil {
+			return models.Style{}, err
+		}
+
+		merged := parent.Merge(style)
+		resolved[name] = merged
+		return merged, nil
+	}
+
+	for idx := range report.Styles.Styles {
+		resolvedStyle, err := resolve(report.Styles.Styles[idx].Name)
+		if err != nil {
+			return fmt.Errorf("failed to resolve style inheritance: %w", err)
+		}
+		report.Styles.Styles[idx] = resolvedStyle
+	}
+
+	return nil
 }

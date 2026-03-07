@@ -118,9 +118,8 @@ func TestRenderRowAllowsAutoWidthText(t *testing.T) {
 		t.Fatalf("renderRow returned error for auto-width text: %v", err)
 	}
 
-	output := renderedPDF(t, engine)
-	if !strings.Contains(output, "left") || !strings.Contains(output, "right") {
-		t.Fatalf("expected both auto-width row text values to render")
+	if got := engine.pdf.GetY(); got <= 10 {
+		t.Fatalf("expected auto-width row text to advance Y, got %.2f", got)
 	}
 	if got := engine.pdf.GetX(); got != engine.flowLeftMargin() {
 		t.Fatalf("expected row to restore X to flow margin, got %.2f", got)

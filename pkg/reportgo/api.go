@@ -3,8 +3,10 @@ package reportgo
 
 import (
 	"io"
+	"text/template"
 
 	"github.com/dannyswat/reportgo/internal/engine"
+	"github.com/dannyswat/reportgo/internal/models"
 	"github.com/dannyswat/reportgo/internal/parser"
 )
 
@@ -61,6 +63,25 @@ func WithSchemaValidation(enabled bool) Option {
 	}
 }
 
+// WithFuncMap registers additional template functions at engine construction time.
+func WithFuncMap(funcs template.FuncMap) Option {
+	return func(e *Engine) {
+		e.engine.AddFuncMap(funcs)
+	}
+}
+
+// WithEmbeddedFont registers a font from in-memory bytes.
+func WithEmbeddedFont(name, family, style string, data []byte) Option {
+	return func(e *Engine) {
+		e.engine.AddEmbeddedFont(models.EmbeddedFont{
+			Name:   name,
+			Family: family,
+			Style:  style,
+			Data:   append([]byte(nil), data...),
+		})
+	}
+}
+
 // LoadTemplate loads an XML template from a file.
 func (e *Engine) LoadTemplate(filepath string) error {
 	report, err := parser.ParseTemplate(filepath)
@@ -106,6 +127,21 @@ func (e *Engine) SetData(data map[string]interface{}) {
 	e.engine.SetData(e.data)
 }
 
+// AddFuncMap merges additional template functions after engine construction.
+func (e *Engine) AddFuncMap(funcs template.FuncMap) {
+	e.engine.AddFuncMap(funcs)
+}
+
+// AddEmbeddedFont registers an embedded font after engine construction.
+func (e *Engine) AddEmbeddedFont(name, family, style string, data []byte) {
+	e.engine.AddEmbeddedFont(models.EmbeddedFont{
+		Name:   name,
+		Family: family,
+		Style:  style,
+		Data:   append([]byte(nil), data...),
+	})
+}
+
 // Generate generates a PDF report and writes it to a file.
 // If data is provided, it will be merged with any previously set data.
 func (e *Engine) Generate(data map[string]interface{}, filepath string) error {
@@ -120,7 +156,16 @@ func (e *Engine) Generate(data map[string]interface{}, filepath string) error {
 }
 
 // GenerateToWriter generates a PDF report and writes it to an io.Writer.
-func (e *Engine) GenerateToWriter(w io.Writer) error {
+// Any provided data maps are merged before rendering.
+func (e *Engine) GenerateToWriter(w io.Writer, data ...map[string]interface{}) error {
+	for _, item := range data {
+		if item == nil {
+			continue
+		}
+		for k, v := range item {
+			e.data[k] = v
+		}
+	}
 	e.engine.SetData(e.data)
 	return e.engine.Generate(w)
 }

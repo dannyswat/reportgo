@@ -197,6 +197,7 @@
             <xs:element name="lineHeight" type="rg:PositiveDecimal" minOccurs="0"/>
         </xs:sequence>
         <xs:attribute name="name" type="xs:string" use="required"/>
+        <xs:attribute name="extends" type="xs:string"/>
     </xs:complexType>
 
     <xs:complexType name="RGBColorType">

@@ -47,7 +47,13 @@ Templates are defined in XML format with schema validation via XSD. The template
     </fonts>
     
     <styles>
-        <style name="title">
+        <style name="base_text">
+            <fontFamily>Arial</fontFamily>
+            <textColor r="0" g="0" b="0"/>
+            <align>L</align>
+        </style>
+
+        <style name="title" extends="base_text">
             <fontFamily>Arial</fontFamily>
             <fontStyle>B</fontStyle>
             <fontSize>24</fontSize>
@@ -442,7 +448,10 @@ func main() {
 package main
 
 import (
+    "os"
     "log"
+    "strings"
+    "text/template"
     "github.com/yourusername/reportgo/pkg/reportgo"
 )
 
@@ -452,6 +461,9 @@ func main() {
         reportgo.WithFontPath("./fonts"),
         reportgo.WithImagePath("./assets"),
         reportgo.WithCompression(true),
+        reportgo.WithFuncMap(template.FuncMap{
+            "shout": func(input string) string { return strings.ToUpper(input) + "!" },
+        }),
         reportgo.WithSchemaValidation(true),  // Enable XSD validation
     )
 
@@ -481,7 +493,7 @@ func main() {
     file, _ := os.Create("output/report.pdf")
     defer file.Close()
     
-    err = engine.GenerateToWriter(file)
+    err = engine.GenerateToWriter(file, map[string]interface{}{"Title": "Writer Output"})
     if err != nil {
         log.Fatal(err)
     }
@@ -507,6 +519,32 @@ Built-in template functions available in content fields:
 | `sub` | Subtract numbers | `{{sub .A .B}}` |
 | `mul` | Multiply numbers | `{{mul .A .B}}` |
 | `div` | Divide numbers | `{{div .A .B}}` |
+| `join` | Join a string slice | `{{join .Tags ", "}}` |
+| `replace` | Replace all occurrences of a substring | `{{replace .Slug "-" "_"}}` |
+| `ifelse` | Inline conditional values | `{{ifelse .IsActive "active" "inactive"}}` |
+| `truncate` | Truncate long text with ellipsis | `{{truncate .Summary 80}}` |
+| `dateFormat` | Alias for `formatDate` | `{{dateFormat .Date "Jan 2006"}}` |
+
+Applications can register additional helpers with `reportgo.WithFuncMap(...)` or `engine.AddFuncMap(...)`.
+
+## Style Inheritance
+
+Styles can inherit unspecified values from another style with `extends`:
+
+```xml
+<style name="base_text">
+    <fontFamily>Arial</fontFamily>
+    <fontSize>11</fontSize>
+    <textColor r="0" g="0" b="0"/>
+</style>
+
+<style name="heading" extends="base_text">
+    <fontStyle>B</fontStyle>
+    <fontSize>16</fontSize>
+</style>
+```
+
+Style inheritance is resolved during template parsing. Cycles and unknown parent styles return an error.
 
 ## Conditional Sections
 

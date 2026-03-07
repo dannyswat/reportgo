@@ -136,6 +136,10 @@ func (e *Engine) initPDF() {
 		e.pdf.SetAutoPageBreak(true, doc.Margins.Bottom)
 	}
 
+	// Ensure unstyled text elements can render even when no explicit style has
+	// selected a font yet. Styled content will override this as needed.
+	e.pdf.SetFont("Arial", "", 12)
+
 	loadedFonts := make(map[string]bool)
 	for _, font := range e.embeddedFonts {
 		if len(font.Data) == 0 {

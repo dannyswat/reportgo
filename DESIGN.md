@@ -1,663 +1,443 @@
-# ReportGo - PDF Report Generator Design Document
+# ReportGo Design
 
 ## Overview
 
-ReportGo is a Go-based PDF report generation system that creates professional PDF reports from file templates and data. It uses the [gofpdf](https://github.com/phpdave11/gofpdf) library for PDF generation.
+ReportGo generates PDF documents from XML templates and data supplied either as JSON files or in-memory Go maps. The implementation is built on top of [gofpdf](https://github.com/phpdave11/gofpdf).
 
-## Architecture
+The current codebase is centered on three stages:
 
+1. Parse an XML template into internal models.
+2. Merge runtime data and evaluate Go template expressions while rendering.
+3. Render the resulting document through gofpdf.
+
+## Current Architecture
+
+```text
+XML Template ──> parser ──> report models ──> engine ──> gofpdf ──> PDF
+                              ▲                ▲
+                              │                │
+                        JSON data file     in-memory data map
 ```
-┌─────────────────┐     ┌──────────────────┐     ┌─────────────────┐
-│  Template File  │────▶│  Report Engine   │────▶│   PDF Output    │
-│    (YAML/JSON)  │     │                  │     │                 │
-└─────────────────┘     └──────────────────┘     └─────────────────┘
-                               ▲
-                               │
-                        ┌──────┴──────┐
-                        │  Data Source │
-                        │  (JSON/YAML) │
-                        └─────────────┘
-```
 
-## Template Format Specification
+Notes:
 
-Templates are defined in XML format with schema validation via XSD. The template defines the structure, layout, and styling of the PDF report.
+- Templates are XML only.
+- Built-in file-based data loading is JSON only.
+- A schema file exists in the repository, but template loading currently uses XML unmarshaling rather than XSD enforcement.
 
-### Template Structure
+## Implemented Capabilities
+
+### Document Model
+
+The report model currently supports:
+
+- `metadata`
+- `document` with margins, orientation, unit, and format
+- `fonts`
+- `styles`
+- `header`
+- `footer`
+- `sections`
+
+Default values are applied during parsing:
+
+- orientation: `portrait`
+- unit: `mm`
+- format: `A4`
+- margins: `15mm` on all sides when omitted
+- header/footer height: `15mm` when the block exists and no height is set
+
+### Supported Elements
+
+Sections preserve element order and can contain:
+
+- `text`
+- `image`
+- `table`
+- `list`
+- `keyValueList`
+- `line`
+- `rectangle`
+- `row`
+- `spacer`
+- `pageBreak`
+
+Rows are intentionally narrow in scope:
+
+- only `text` and `image` children are supported
+- `image` children must provide both `width` and `height`
+- `text` children may omit `width`; the last text child expands to remaining width
+- child `x` and `y` offsets are interpreted relative to the row origin
+
+### Styling
+
+Styles are named and reusable. They currently support:
+
+- `fontFamily`
+- `fontStyle`
+- `fontSize`
+- `textColor`
+- `fillColor`
+- `align`
+- `lineHeight`
+- `extends`
+
+Style inheritance is resolved during template parsing. Unknown parent styles and inheritance cycles return errors.
+
+### Data Binding and Helpers
+
+Content fields are processed with Go's `text/template` package.
+
+Built-in helpers currently include:
+
+- `upper`
+- `lower`
+- `title`
+- `trim`
+- `default`
+- `add`
+- `sub`
+- `mul`
+- `div`
+- `join`
+- `replace`
+- `ifelse`
+- `truncate`
+- `formatDate`
+- `dateFormat`
+- `formatNumber`
+- `formatCurrency`
+- `formatPercent`
+
+Applications can extend the helper set via `WithFuncMap` at construction time or `AddFuncMap` afterward.
+
+The `default` helper uses the signature `default fallback value`.
+
+### Conditional Rendering and Loops
+
+Conditional rendering is supported on sections and individual elements through the `condition` attribute.
+
+After template expansion, these rendered values are treated as false:
+
+- empty string
+- `0`
+- `false`
+- `nil`
+- `null`
+- `<no value>`
+
+Any other rendered value is treated as true.
+
+Sections also support repeating content with:
+
+- `loop`
+- `loopVariable`
+
+If `loopVariable` is omitted, the current item is exposed as `item`.
+
+### Layout Behavior
+
+The engine supports a mix of flow-based and positioned rendering:
+
+- text and images can use explicit `x` and `y` coordinates
+- wrapped text uses the current effective content width rather than raw page width
+- sections can shift flow content with `paddingLeft`
+- sections support `pageBreakBefore` and `pageBreakAfter`
+- `spacer` advances the cursor without drawing
+- `pageBreak` forces a new page immediately
+
+Headers and footers can render `text`, `image`, and `line` elements when enabled.
+
+### Fonts
+
+Fonts can be provided in two ways:
+
+- file-based fonts declared in the template `<fonts>` block
+- embedded in-memory fonts registered through the public API
+
+Embedded fonts are loaded first. File-based fonts are skipped when a font with the same family and style has already been registered from memory.
+
+## Template Structure
+
+The following example reflects the features that are actually implemented today:
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
-<report xmlns="http://reportgo.io/schema/v1"
-        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:schemaLocation="http://reportgo.io/schema/v1 reportgo.xsd"
-        version="1.0">
-    
-    <metadata>
-        <name>Monthly Sales Report</name>
-        <description>Template for monthly sales reports</description>
-        <author>ReportGo</author>
-    </metadata>
-    
+<report xmlns="http://reportgo.io/schema/v1" version="1.0">
     <document orientation="portrait" unit="mm" format="A4">
         <margins top="15" right="15" bottom="15" left="15"/>
     </document>
-    
-    <fonts>
-        <font name="custom-font" family="CustomFont" style="" file="fonts/CustomFont-Regular.ttf"/>
-    </fonts>
-    
+
     <styles>
         <style name="base_text">
             <fontFamily>Arial</fontFamily>
-            <textColor r="0" g="0" b="0"/>
-            <align>L</align>
-        </style>
-
-        <style name="title" extends="base_text">
-            <fontFamily>Arial</fontFamily>
-            <fontStyle>B</fontStyle>
-            <fontSize>24</fontSize>
-            <textColor r="0" g="51" b="102"/>
-            <align>C</align>
-        </style>
-        
-        <style name="heading1">
-            <fontFamily>Arial</fontFamily>
-            <fontStyle>B</fontStyle>
-            <fontSize>16</fontSize>
-            <textColor r="0" g="0" b="0"/>
-            <align>L</align>
-        </style>
-        
-        <style name="heading2">
-            <fontFamily>Arial</fontFamily>
-            <fontStyle>B</fontStyle>
-            <fontSize>14</fontSize>
-            <textColor r="51" g="51" b="51"/>
-            <align>L</align>
-        </style>
-        
-        <style name="body">
-            <fontFamily>Arial</fontFamily>
-            <fontStyle></fontStyle>
             <fontSize>11</fontSize>
             <textColor r="0" g="0" b="0"/>
             <align>L</align>
             <lineHeight>6</lineHeight>
         </style>
-        
-        <style name="table_header">
-            <fontFamily>Arial</fontFamily>
+
+        <style name="title" extends="base_text">
+            <fontStyle>B</fontStyle>
+            <fontSize>20</fontSize>
+        </style>
+
+        <style name="table_header" extends="base_text">
             <fontStyle>B</fontStyle>
             <fontSize>10</fontSize>
             <textColor r="255" g="255" b="255"/>
             <fillColor r="0" g="51" b="102"/>
             <align>C</align>
         </style>
-        
-        <style name="table_cell">
-            <fontFamily>Arial</fontFamily>
-            <fontStyle></fontStyle>
-            <fontSize>10</fontSize>
-            <textColor r="0" g="0" b="0"/>
-            <fillColor r="245" g="245" b="245"/>
-            <align>L</align>
-        </style>
     </styles>
-    
-    <header enabled="true" height="20">
-        <image path="{{.LogoPath}}" x="10" y="5" width="30" height="10"/>
-        <text style="heading2" x="50" y="10">{{.CompanyName}}</text>
-        <text style="body" x="-50" y="10" align="R">Generated: {{.GeneratedDate}}</text>
-    </header>
-    
-    <footer enabled="true" height="15">
-        <line x1="10" y1="0" x2="-10" y2="0" color="#C8C8C8"/>
-        <text style="body" align="C" y="5">Page {{.PageNum}} of {{.TotalPages}}</text>
-        <text style="body" align="R" x="-10" y="5">Confidential</text>
-    </footer>
-    
+
     <sections>
-        <section name="title_section">
-            <text style="title" spacingAfter="10">{{.ReportTitle}}</text>
-            <text style="heading2" align="C" spacingAfter="20">{{.ReportSubtitle}}</text>
-        </section>
-        
-        <section name="summary_section">
-            <text style="heading1" spacingAfter="5">Executive Summary</text>
-            <text style="body" spacingAfter="15">{{.Summary}}</text>
-            <keyValueList style="body" spacingAfter="20">
-                <item key="Total Revenue" value="{{.TotalRevenue}}"/>
-                <item key="Total Orders" value="{{.TotalOrders}}"/>
-                <item key="Average Order Value" value="{{.AvgOrderValue}}"/>
-            </keyValueList>
+        <section name="summary">
+            <text style="title" spacingAfter="6">{{.Title}}</text>
+            <text style="base_text" wrap="true" spacingAfter="8">{{.Summary}}</text>
         </section>
 
-        <section name="highlights" paddingLeft="8">
-            <row spacingAfter="4">
-                <text style="heading2" width="110">{{.PrimaryLabel}}</text>
-                <text style="body" width="60" align="R">{{.PrimaryValue}}</text>
+        <section name="highlights" paddingLeft="8" condition="{{.ShowHighlights}}">
+            <row spacingAfter="3">
+                <text style="base_text" width="120">{{.PrimaryLabel}}</text>
+                <text style="base_text" width="50" align="R">{{.PrimaryValue}}</text>
             </row>
-            <spacer height="3"/>
-            <text style="body" wrap="true">{{.HighlightSummary}}</text>
+            <spacer height="2"/>
+            <list style="base_text" items="{{.Highlights}}" bullet="-" indent="6"/>
         </section>
-        
-        <section name="data_table_section">
-            <text style="heading1" spacingAfter="5">Sales Details</text>
-            <table dataSource="{{.SalesData}}" headerStyle="table_header" 
-                   cellStyle="table_cell" border="true" spacingAfter="20">
-                <alternateRowColor r="255" g="255" b="255"/>
-                <columns>
-                    <column header="Product" field="product" width="50" align="L"/>
-                    <column header="Quantity" field="quantity" width="30" align="C"/>
-                    <column header="Unit Price" field="unit_price" width="35" align="R" format="currency"/>
-                    <column header="Total" field="total" width="35" align="R" format="currency"/>
-                </columns>
-            </table>
-        </section>
-        
-        <section name="chart_section">
-            <text style="heading1" spacingAfter="5">Sales Trend</text>
-            <image path="{{.ChartImagePath}}" width="150" height="80" align="C" spacingAfter="15"/>
-        </section>
-        
-        <section name="notes_section" pageBreakBefore="true">
-            <text style="heading1" spacingAfter="5">Notes &amp; Observations</text>
-            <list style="body" items="{{.Notes}}" bullet="•" indent="10" spacingAfter="15"/>
+
+        <section name="projects" loop="{{.Projects}}" loopVariable="project">
+            <text style="title">{{title .project.Name}}</text>
+            <text style="base_text" wrap="true">{{default "No description" .project.Description}}</text>
         </section>
     </sections>
 </report>
 ```
 
-## Data Format Specification
+## Element Reference
 
-Data is provided in JSON or YAML format:
-
-```json
-{
-  "LogoPath": "assets/logo.png",
-  "CompanyName": "Acme Corporation",
-  "GeneratedDate": "2025-12-05",
-  "ReportTitle": "Monthly Sales Report",
-  "ReportSubtitle": "November 2025",
-  "Summary": "This report provides a comprehensive overview of sales performance for November 2025. Overall revenue increased by 15% compared to the previous month.",
-  "TotalRevenue": "$125,450.00",
-  "TotalOrders": "1,234",
-  "AvgOrderValue": "$101.66",
-  "SalesData": [
-    {
-      "product": "Widget A",
-      "quantity": 500,
-      "unit_price": 25.00,
-      "total": 12500.00
-    },
-    {
-      "product": "Widget B",
-      "quantity": 350,
-      "unit_price": 45.00,
-      "total": 15750.00
-    }
-  ],
-  "ChartImagePath": "assets/chart.png",
-  "Notes": [
-    "Sales exceeded target by 10%",
-    "New product launch contributed 25% of revenue",
-    "Customer retention rate improved to 85%"
-  ]
-}
-```
-
-## Element Types
-
-### Text Element
+### Text
 
 ```xml
-<text style="style_name" x="10" y="20" align="L" wrap="true" spacingAfter="10">
-    {{.Variable}}
-</text>
+<text style="body" x="10" y="20" width="80" align="L" wrap="true" spacingAfter="6">{{.Value}}</text>
 ```
 
-| Attribute | Description | Required |
-|-----------|-------------|----------|
-| `style` | Reference to defined style | No |
-| `x` | Absolute X position | No |
-| `y` | Absolute Y position | No |
-| `width` | Fixed width for text (enables wrapping) | No |
-| `align` | L \| C \| R \| J | No |
-| `wrap` | Enable text wrapping to fit page width (true/false) | No |
-| `spacingAfter` | Vertical spacing after element | No |
+Supported attributes:
 
-### Image Element
+- `style`
+- `x`
+- `y`
+- `width`
+- `align`
+- `wrap`
+- `condition`
+- `spacingAfter`
+
+### Image
 
 ```xml
-<image path="{{.ImagePath}}" x="10" y="20" width="50" height="30" align="C" spacingAfter="10"/>
+<image path="{{.ImagePath}}" width="50" height="30" align="C" spacingAfter="8"/>
 ```
 
-| Attribute | Description | Required |
-|-----------|-------------|----------|
-| `path` | Path to image file | Yes |
-| `x` | X position | No |
-| `y` | Y position | No |
-| `width` | Image width | Yes |
-| `height` | Image height (maintains aspect ratio if omitted) | No |
-| `align` | L \| C \| R | No |
-| `spacingAfter` | Vertical spacing after element | No |
+Supported attributes:
 
-### Table Element
+- `path`
+- `x`
+- `y`
+- `width`
+- `height`
+- `align`
+- `condition`
+- `spacingAfter`
+
+### Table
 
 ```xml
-<table dataSource="{{.DataArray}}" headerStyle="table_header" 
-       cellStyle="table_cell" border="true" spacingAfter="15">
-    <alternateRowColor r="240" g="240" b="240"/>
+<table dataSource="{{.Rows}}" headerStyle="table_header" cellStyle="body" border="true">
+    <alternateRowColor r="245" g="245" b="245"/>
     <columns>
-        <column header="Column Name" field="field_name" width="40" align="L" format="string"/>
+        <column header="Name" field="name" width="80" align="L"/>
+        <column header="Value" field="value" width="30" align="R" format="number"/>
     </columns>
 </table>
 ```
 
-| Attribute | Description | Required |
-|-----------|-------------|----------|
-| `dataSource` | Template variable for data array | Yes |
-| `headerStyle` | Style for header row | No |
-| `cellStyle` | Style for data cells | No |
-| `border` | Show borders (true/false) | No |
-| `spacingAfter` | Vertical spacing after element | No |
+Supported attributes:
 
-Column `format` options: `string` | `currency` | `number` | `date` | `percent`
+- `dataSource`
+- `headerStyle`
+- `cellStyle`
+- `border`
+- `condition`
+- `spacingAfter`
 
-### List Element
+Column `format` values currently handled by the renderer are `currency`, `percent`, `number`, and the empty default case.
+
+### List
 
 ```xml
-<list style="body" items="{{.ListItems}}" bullet="•" indent="10" spacingAfter="10"/>
+<list style="body" items="{{.Items}}" bullet="-" indent="10" spacingAfter="8"/>
 ```
 
-| Attribute | Description | Required |
-|-----------|-------------|----------|
-| `items` | Template variable for list items | Yes |
-| `style` | Reference to defined style | No |
-| `bullet` | Bullet character | No |
-| `indent` | Left indentation | No |
-| `spacingAfter` | Vertical spacing after element | No |
+Supported attributes:
 
-### Key-Value List Element
+- `items`
+- `style`
+- `bullet`
+- `indent`
+- `condition`
+- `spacingAfter`
+
+### Key-Value List
 
 ```xml
-<keyValueList style="body" keyWidth="50" spacingAfter="10">
-    <item key="Label" value="{{.Value}}"/>
+<keyValueList style="body" keyWidth="50" valueAlign="R">
+    <item key="Revenue" value="{{.Revenue}}"/>
 </keyValueList>
 ```
 
-| Attribute | Description | Required |
-|-----------|-------------|----------|
-| `style` | Reference to defined style | No |
-| `keyWidth` | Width for key column | No |
-| `spacingAfter` | Vertical spacing after element | No |
+Supported attributes:
 
-### Line Element
+- `style`
+- `keyWidth`
+- `valueWidth`
+- `valueAlign`
+- `condition`
+- `spacingAfter`
+
+### Line
 
 ```xml
-<line x1="10" y1="0" x2="-10" y2="0" color="#000000" width="0.5"/>
+<line x1="15" y1="0" x2="-15" y2="0" color="#D9D1C7" width="0.3" spacingAfter="4"/>
 ```
 
-| Attribute | Description | Required |
-|-----------|-------------|----------|
-| `x1`, `y1` | Start coordinates | Yes |
-| `x2`, `y2` | End coordinates (negative = relative to margin) | Yes |
-| `color` | Line color (hex or rgb) | No |
-| `width` | Line width in mm | No |
-| `spacingAfter` | Vertical spacing after the line | No |
+Supported attributes:
 
-### Rectangle Element
+- `x1`
+- `y1`
+- `x2`
+- `y2`
+- `color`
+- `width`
+- `condition`
+- `spacingAfter`
+
+Negative `x` coordinates are resolved relative to the page width.
+
+### Rectangle
 
 ```xml
-<rectangle x="10" y="20" width="100" height="50" radius="3">
-    <fillColor r="240" g="240" b="240"/>
+<rectangle x="15" y="30" width="100" height="20" radius="2">
+    <fillColor r="245" g="245" b="245"/>
     <borderColor r="0" g="0" b="0"/>
     <borderWidth>0.5</borderWidth>
 </rectangle>
 ```
 
-| Attribute | Description | Required |
-|-----------|-------------|----------|
-| `x`, `y` | Position | Yes |
-| `width`, `height` | Dimensions | Yes |
-| `radius` | Corner radius for rounded rectangles | No |
+Supported attributes:
 
-### Page Break Element
+- `x`
+- `y`
+- `width`
+- `height`
+- `radius`
+- `condition`
+- `spacingAfter`
 
-```xml
-<pageBreak/>
-```
-
-### Row Element
+### Row
 
 ```xml
 <row spacingAfter="2">
-    <text style="heading2" width="110">{{.Label}}</text>
-    <text style="body" width="60" align="R">{{.Value}}</text>
+    <text style="body">Left</text>
+    <text style="body" align="R">Right</text>
 </row>
 ```
 
-| Attribute | Description | Required |
-|-----------|-------------|----------|
-| `spacingAfter` | Vertical spacing after the row | No |
-| `condition` | Conditional render expression | No |
+Supported attributes:
 
-Phase 2 row support is intentionally narrow:
+- `condition`
+- `spacingAfter`
 
-- only `text` and `image` children are supported,
-- text children may omit `width`; non-wrapping text uses its intrinsic width and the last text child expands to the remaining row width,
-- image children must declare both `width` and `height`,
-- child `x` and `y` values are treated as row-relative offsets.
-
-### Spacer Element
+### Spacer
 
 ```xml
-<spacer height="3"/>
+<spacer height="3" spacingAfter="2"/>
 ```
 
-| Attribute | Description | Required |
-|-----------|-------------|----------|
-| `height` | Vertical space to add in mm | Yes |
-| `spacingAfter` | Additional vertical spacing after the spacer | No |
-| `condition` | Conditional render expression | No |
+Supported attributes:
 
-## Project Structure
+- `height`
+- `condition`
+- `spacingAfter`
 
+### Page Break
+
+```xml
+<pageBreak condition="{{.ForceBreak}}"/>
 ```
+
+Supported attributes:
+
+- `condition`
+
+## Public API
+
+### Typical Flow
+
+```go
+engine := reportgo.New(reportgo.WithFuncMap(template.FuncMap{
+    "badge": func(input string) string { return "[" + strings.ToUpper(input) + "]" },
+}))
+
+if err := engine.LoadTemplate("templates/report.xml"); err != nil {
+    return err
+}
+
+if err := engine.LoadDataFromFile("data.json"); err != nil {
+    return err
+}
+
+return engine.Generate(nil, "output.pdf")
+```
+
+### Writer Output
+
+```go
+var buf bytes.Buffer
+if err := engine.GenerateToWriter(&buf, map[string]interface{}{"Title": "Inline"}); err != nil {
+    return err
+}
+```
+
+### Embedded Fonts
+
+```go
+engine := reportgo.New(
+    reportgo.WithEmbeddedFont("noto-regular", "Noto Sans", "", fontBytes),
+)
+```
+
+## Current Gaps
+
+These behaviors should be treated as not implemented yet, even though parts of the API or model exist:
+
+- XSD validation is not executed during template loading.
+- YAML data input is not supported.
+- `WithFontPath`, `WithImagePath`, `WithCompression`, and `WithSchemaValidation` do not currently change renderer behavior.
+- `document.customSize` is parsed but not used when creating the PDF instance.
+- No implicit page-number variables are injected into template data.
+
+## Repository Layout
+
+```text
 reportgo/
-├── cmd/
-│   └── reportgo/
-│       └── main.go           # CLI entry point
-├── internal/
-│   ├── engine/
-│   │   ├── engine.go         # Core report generation engine
-│   │   ├── renderer.go       # PDF rendering logic
-│   │   └── elements.go       # Element rendering implementations
-│   ├── parser/
-│   │   ├── template.go       # XML template parsing
-│   │   └── data.go           # Data parsing
-│   └── models/
-│       ├── template.go       # Template data structures
-│       ├── document.go       # Document configuration
-│       ├── elements.go       # Element definitions
-│       └── styles.go         # Style definitions
-├── pkg/
-│   └── reportgo/
-│       └── api.go            # Public API
-├── schemas/
-│   └── reportgo.xsd          # XML Schema Definition
-├── templates/
-│   └── examples/
-│       ├── invoice.xml       # Invoice template example
-│       └── report.xml        # Report template example
-├── examples/
-│   ├── simple/
-│   │   └── main.go           # Simple usage example
-│   └── advanced/
-│       └── main.go           # Advanced usage example
-├── go.mod
-├── go.sum
-├── README.md
-└── DESIGN.md
+├── cmd/reportgo/               # CLI entry point
+├── examples/                   # Sample programs and data
+├── fonts/                      # Example font assets used by examples/tests
+├── internal/engine/            # Engine logic and renderers
+├── internal/models/            # XML-backed report models
+├── internal/parser/            # Template and data parsing
+├── pkg/reportgo/               # Public API package
+├── schemas/reportgo.xsd        # Reference schema file
+└── templates/examples/         # Example XML templates
 ```
-
-## API Design
-
-### Basic Usage
-
-```go
-package main
-
-import (
-    "log"
-    "github.com/yourusername/reportgo/pkg/reportgo"
-)
-
-func main() {
-    // Create a new report engine
-    engine := reportgo.New()
-
-    // Load XML template
-    err := engine.LoadTemplate("templates/report.xml")
-    if err != nil {
-        log.Fatal(err)
-    }
-
-    // Load data
-    data := map[string]interface{}{
-        "ReportTitle": "Monthly Sales Report",
-        "Summary":     "Executive summary content...",
-        "SalesData": []map[string]interface{}{
-            {"product": "Widget A", "quantity": 100, "total": 2500.00},
-            {"product": "Widget B", "quantity": 50, "total": 1250.00},
-        },
-    }
-
-    // Generate PDF
-    err = engine.Generate(data, "output/report.pdf")
-    if err != nil {
-        log.Fatal(err)
-    }
-}
-```
-
-### Advanced Usage
-
-```go
-package main
-
-import (
-    "os"
-    "log"
-    "strings"
-    "text/template"
-    "github.com/yourusername/reportgo/pkg/reportgo"
-)
-
-func main() {
-    // Create engine with options
-    engine := reportgo.New(
-        reportgo.WithFontPath("./fonts"),
-        reportgo.WithImagePath("./assets"),
-        reportgo.WithCompression(true),
-        reportgo.WithFuncMap(template.FuncMap{
-            "shout": func(input string) string { return strings.ToUpper(input) + "!" },
-        }),
-        reportgo.WithSchemaValidation(true),  // Enable XSD validation
-    )
-
-    // Load template from string
-    templateXML := `<?xml version="1.0" encoding="UTF-8"?>
-<report xmlns="http://reportgo.io/schema/v1" version="1.0">
-    <document orientation="portrait" format="A4"/>
-    <sections>
-        <section name="main">
-            <text style="title">{{.Title}}</text>
-        </section>
-    </sections>
-</report>`
-
-    err := engine.LoadTemplateFromString(templateXML)
-    if err != nil {
-        log.Fatal(err)
-    }
-
-    // Load data from JSON file
-    err = engine.LoadDataFromFile("data/report-data.json")
-    if err != nil {
-        log.Fatal(err)
-    }
-
-    // Generate to io.Writer
-    file, _ := os.Create("output/report.pdf")
-    defer file.Close()
-    
-    err = engine.GenerateToWriter(file, map[string]interface{}{"Title": "Writer Output"})
-    if err != nil {
-        log.Fatal(err)
-    }
-}
-```
-
-## Template Functions
-
-Built-in template functions available in content fields:
-
-| Function | Description | Example |
-|----------|-------------|---------|
-| `formatDate` | Format date string | `{{formatDate .Date "2006-01-02"}}` |
-| `formatNumber` | Format number with decimals | `{{formatNumber .Value 2}}` |
-| `formatCurrency` | Format as currency | `{{formatCurrency .Amount "USD"}}` |
-| `formatPercent` | Format as percentage | `{{formatPercent .Rate}}` |
-| `upper` | Convert to uppercase | `{{upper .Name}}` |
-| `lower` | Convert to lowercase | `{{lower .Name}}` |
-| `title` | Convert to title case | `{{title .Name}}` |
-| `trim` | Trim whitespace | `{{trim .Text}}` |
-| `default` | Provide default value | `{{default .Value "N/A"}}` |
-| `add` | Add numbers | `{{add .A .B}}` |
-| `sub` | Subtract numbers | `{{sub .A .B}}` |
-| `mul` | Multiply numbers | `{{mul .A .B}}` |
-| `div` | Divide numbers | `{{div .A .B}}` |
-| `join` | Join a string slice | `{{join .Tags ", "}}` |
-| `replace` | Replace all occurrences of a substring | `{{replace .Slug "-" "_"}}` |
-| `ifelse` | Inline conditional values | `{{ifelse .IsActive "active" "inactive"}}` |
-| `truncate` | Truncate long text with ellipsis | `{{truncate .Summary 80}}` |
-| `dateFormat` | Alias for `formatDate` | `{{dateFormat .Date "Jan 2006"}}` |
-
-Applications can register additional helpers with `reportgo.WithFuncMap(...)` or `engine.AddFuncMap(...)`.
-
-## Style Inheritance
-
-Styles can inherit unspecified values from another style with `extends`:
-
-```xml
-<style name="base_text">
-    <fontFamily>Arial</fontFamily>
-    <fontSize>11</fontSize>
-    <textColor r="0" g="0" b="0"/>
-</style>
-
-<style name="heading" extends="base_text">
-    <fontStyle>B</fontStyle>
-    <fontSize>16</fontSize>
-</style>
-```
-
-Style inheritance is resolved during template parsing. Cycles and unknown parent styles return an error.
-
-## Conditional Sections
-
-Sections and elements can be conditionally rendered using the `condition` attribute:
-
-```xml
-<section name="optional_section" condition="{{if .ShowSection}}true{{end}}">
-    <text style="body">This section is optional</text>
-</section>
-```
-
-Conditions are evaluated after template expansion. The values `""`, `"false"`, `"0"`, `"nil"`, `"null"`, and `<no value>` are treated as false. Any other rendered value is treated as true.
-
-Sections also support `paddingLeft` to indent flow-based content without switching to absolute positioning:
-
-```xml
-<section name="project" paddingLeft="6">
-    <text style="body" wrap="true">{{.ProjectSummary}}</text>
-</section>
-```
-
-## Loops in Templates
-
-For repeating content based on data, use the `loop` and `loopVariable` attributes:
-
-```xml
-<section name="products" loop="{{.Products}}" loopVariable="product">
-    <text style="heading2">{{.product.Name}}</text>
-    <text style="body">{{.product.Description}}</text>
-</section>
-```
-
-The section body is rendered once per item in the referenced slice or array. If `loopVariable` is omitted, the current item is exposed as `item`.
-
-## Color Formats
-
-Colors can be specified in multiple formats:
-
-```xml
-<!-- RGB elements -->
-<textColor r="255" g="100" b="50"/>
-
-<!-- Hex string attribute -->
-<line color="#FF6432" .../>
-
-<!-- Named color attribute -->
-<line color="blue" .../>
-```
-
-## Supported Named Colors
-
-| Color Name | RGB Value |
-|------------|-----------|
-| black | [0, 0, 0] |
-| white | [255, 255, 255] |
-| red | [255, 0, 0] |
-| green | [0, 128, 0] |
-| blue | [0, 0, 255] |
-| gray | [128, 128, 128] |
-| lightgray | [211, 211, 211] |
-| darkgray | [169, 169, 169] |
-
-## Page Formats
-
-| Format | Size (mm) |
-|--------|-----------|
-| A3 | 297 x 420 |
-| A4 | 210 x 297 |
-| A5 | 148 x 210 |
-| Letter | 215.9 x 279.4 |
-| Legal | 215.9 x 355.6 |
-| Custom | [width, height] |
-
-## Error Handling
-
-The engine provides comprehensive error handling:
-
-```go
-err := engine.Generate(data, "output.pdf")
-if err != nil {
-    switch e := err.(type) {
-    case *reportgo.TemplateError:
-        log.Printf("Template error: %v at line %d", e.Message, e.Line)
-    case *reportgo.DataError:
-        log.Printf("Data error: %v for field %s", e.Message, e.Field)
-    case *reportgo.RenderError:
-        log.Printf("Render error: %v in section %s", e.Message, e.Section)
-    default:
-        log.Printf("Unknown error: %v", err)
-    }
-}
-```
-
-## Future Enhancements
-
-1. **Chart Generation**: Built-in chart rendering (bar, line, pie charts)
-2. **QR/Barcode Support**: Generate QR codes and barcodes
-3. **Watermarks**: Add text or image watermarks
-4. **Digital Signatures**: Support for PDF digital signatures
-5. **Password Protection**: PDF encryption and password protection
-6. **Template Inheritance**: Base templates with overridable sections
-7. **Multiple Output Formats**: Export to HTML, DOCX in addition to PDF
-8. **Web API**: REST API for report generation
-9. **Template Validation**: CLI tool for validating templates
-10. **Live Preview**: Hot-reload template preview during development
-
-## Dependencies
-
-- `github.com/phpdave11/gofpdf` - PDF generation
-- `encoding/xml` - XML parsing (standard library)
-- `encoding/json` - JSON parsing (standard library)
-- `text/template` - Template processing (standard library)
-
-## License
-
-MIT License

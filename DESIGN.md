@@ -126,6 +126,15 @@ Templates are defined in XML format with schema validation via XSD. The template
                 <item key="Average Order Value" value="{{.AvgOrderValue}}"/>
             </keyValueList>
         </section>
+
+        <section name="highlights" paddingLeft="8">
+            <row spacingAfter="4">
+                <text style="heading2" width="110">{{.PrimaryLabel}}</text>
+                <text style="body" width="60" align="R">{{.PrimaryValue}}</text>
+            </row>
+            <spacer height="3"/>
+            <text style="body" wrap="true">{{.HighlightSummary}}</text>
+        </section>
         
         <section name="data_table_section">
             <text style="heading1" spacingAfter="5">Sales Details</text>
@@ -290,6 +299,7 @@ Column `format` options: `string` | `currency` | `number` | `date` | `percent`
 | `x2`, `y2` | End coordinates (negative = relative to margin) | Yes |
 | `color` | Line color (hex or rgb) | No |
 | `width` | Line width in mm | No |
+| `spacingAfter` | Vertical spacing after the line | No |
 
 ### Rectangle Element
 
@@ -312,6 +322,39 @@ Column `format` options: `string` | `currency` | `number` | `date` | `percent`
 ```xml
 <pageBreak/>
 ```
+
+### Row Element
+
+```xml
+<row spacingAfter="2">
+    <text style="heading2" width="110">{{.Label}}</text>
+    <text style="body" width="60" align="R">{{.Value}}</text>
+</row>
+```
+
+| Attribute | Description | Required |
+|-----------|-------------|----------|
+| `spacingAfter` | Vertical spacing after the row | No |
+| `condition` | Conditional render expression | No |
+
+Phase 2 row support is intentionally narrow:
+
+- only `text` and `image` children are supported,
+- text children may omit `width`; non-wrapping text uses its intrinsic width and the last text child expands to the remaining row width,
+- image children must declare both `width` and `height`,
+- child `x` and `y` values are treated as row-relative offsets.
+
+### Spacer Element
+
+```xml
+<spacer height="3"/>
+```
+
+| Attribute | Description | Required |
+|-----------|-------------|----------|
+| `height` | Vertical space to add in mm | Yes |
+| `spacingAfter` | Additional vertical spacing after the spacer | No |
+| `condition` | Conditional render expression | No |
 
 ## Project Structure
 
@@ -475,6 +518,16 @@ Sections and elements can be conditionally rendered using the `condition` attrib
 </section>
 ```
 
+Conditions are evaluated after template expansion. The values `""`, `"false"`, `"0"`, `"nil"`, `"null"`, and `<no value>` are treated as false. Any other rendered value is treated as true.
+
+Sections also support `paddingLeft` to indent flow-based content without switching to absolute positioning:
+
+```xml
+<section name="project" paddingLeft="6">
+    <text style="body" wrap="true">{{.ProjectSummary}}</text>
+</section>
+```
+
 ## Loops in Templates
 
 For repeating content based on data, use the `loop` and `loopVariable` attributes:
@@ -485,6 +538,8 @@ For repeating content based on data, use the `loop` and `loopVariable` attribute
     <text style="body">{{.product.Description}}</text>
 </section>
 ```
+
+The section body is rendered once per item in the referenced slice or array. If `loopVariable` is omitted, the current item is exposed as `item`.
 
 ## Color Formats
 

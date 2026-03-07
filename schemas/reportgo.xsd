@@ -233,6 +233,8 @@
                 <xs:element name="keyValueList" type="rg:KeyValueListElementType"/>
                 <xs:element name="line" type="rg:LineElementType"/>
                 <xs:element name="rectangle" type="rg:RectangleElementType"/>
+                <xs:element name="row" type="rg:RowElementType"/>
+                <xs:element name="spacer" type="rg:SpacerElementType"/>
                 <xs:element name="pageBreak" type="rg:PageBreakElementType"/>
             </xs:choice>
         </xs:sequence>
@@ -242,6 +244,7 @@
         <xs:attribute name="condition" type="rg:TemplateStringType"/>
         <xs:attribute name="loop" type="rg:TemplateStringType"/>
         <xs:attribute name="loopVariable" type="xs:string"/>
+        <xs:attribute name="paddingLeft" type="rg:PositiveDecimal"/>
     </xs:complexType>
 
     <!-- ==================== Element Types ==================== -->
@@ -326,6 +329,7 @@
         <xs:attribute name="y2" type="xs:decimal" use="required"/>
         <xs:attribute name="color" type="rg:ColorAttributeType" default="black"/>
         <xs:attribute name="width" type="rg:PositiveDecimal" default="0.5"/>
+        <xs:attribute name="spacingAfter" type="rg:PositiveDecimal"/>
         <xs:attribute name="condition" type="rg:TemplateStringType"/>
     </xs:complexType>
 
@@ -340,6 +344,23 @@
         <xs:attribute name="width" type="rg:PositiveDecimal" use="required"/>
         <xs:attribute name="height" type="rg:PositiveDecimal" use="required"/>
         <xs:attribute name="radius" type="rg:PositiveDecimal" default="0"/>
+        <xs:attribute name="spacingAfter" type="rg:PositiveDecimal"/>
+        <xs:attribute name="condition" type="rg:TemplateStringType"/>
+    </xs:complexType>
+
+    <xs:complexType name="RowElementType">
+        <xs:sequence>
+            <xs:choice minOccurs="0" maxOccurs="unbounded">
+                <xs:element name="text" type="rg:TextElementType"/>
+                <xs:element name="image" type="rg:ImageElementType"/>
+            </xs:choice>
+        </xs:sequence>
+        <xs:attribute name="spacingAfter" type="rg:PositiveDecimal"/>
+        <xs:attribute name="condition" type="rg:TemplateStringType"/>
+    </xs:complexType>
+
+    <xs:complexType name="SpacerElementType">
+        <xs:attribute name="height" type="rg:PositiveDecimal" use="required"/>
         <xs:attribute name="spacingAfter" type="rg:PositiveDecimal"/>
         <xs:attribute name="condition" type="rg:TemplateStringType"/>
     </xs:complexType>

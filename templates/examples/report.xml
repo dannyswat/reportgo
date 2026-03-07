@@ -77,6 +77,16 @@
                 <item key="Average Order Value" value="{{.AvgOrderValue}}"/>
             </keyValueList>
         </section>
+
+        <section name="highlights_section" paddingLeft="8">
+            <text style="heading1" spacingAfter="5">Highlights</text>
+            <row spacingAfter="4">
+                <text style="body" width="100">{{.PrimaryLabel}}</text>
+                <text style="body" width="70" align="R">{{.PrimaryValue}}</text>
+            </row>
+            <spacer height="3"/>
+            <text style="body" wrap="true">{{.HighlightSummary}}</text>
+        </section>
         
         <section name="data_table_section">
             <text style="heading1" spacingAfter="5">Sales Details</text>

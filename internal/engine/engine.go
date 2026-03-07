@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"reflect"
 	"strings"
 	"text/template"
 
@@ -15,11 +16,12 @@ import (
 
 // Engine is the core report generation engine.
 type Engine struct {
-	report  *models.Report
-	data    map[string]interface{}
-	pdf     *gofpdf.Fpdf
-	styles  map[string]*models.Style
-	funcMap template.FuncMap
+	report         *models.Report
+	data           map[string]interface{}
+	pdf            *gofpdf.Fpdf
+	styles         map[string]*models.Style
+	funcMap        template.FuncMap
+	flowOffsetLeft float64
 }
 
 // New creates a new Engine instance.
@@ -56,11 +58,8 @@ func (e *Engine) Generate(w io.Writer) error {
 	// Add first page
 	e.pdf.AddPage()
 
-	// Render sections
-	for _, section := range e.report.Sections.Sections {
-		if err := e.renderSection(&section); err != nil {
-			return fmt.Errorf("failed to render section %s: %w", section.Name, err)
-		}
+	if err := e.renderSections(); err != nil {
+		return err
 	}
 
 	// Check for errors
@@ -82,10 +81,8 @@ func (e *Engine) GenerateToFile(filepath string) error {
 	e.setupHeaderFooter()
 	e.pdf.AddPage()
 
-	for _, section := range e.report.Sections.Sections {
-		if err := e.renderSection(&section); err != nil {
-			return fmt.Errorf("failed to render section %s: %w", section.Name, err)
-		}
+	if err := e.renderSections(); err != nil {
+		return err
 	}
 
 	if e.pdf.Err() {
@@ -93,6 +90,16 @@ func (e *Engine) GenerateToFile(filepath string) error {
 	}
 
 	return e.pdf.OutputFileAndClose(filepath)
+}
+
+func (e *Engine) renderSections() error {
+	for _, section := range e.report.Sections.Sections {
+		if err := e.renderSection(&section); err != nil {
+			return fmt.Errorf("failed to render section %s: %w", section.Name, err)
+		}
+	}
+
+	return nil
 }
 
 // initPDF initializes the PDF document.
@@ -167,13 +174,55 @@ func (e *Engine) renderHeaderFooterElements(texts []models.Text, images []models
 
 // renderSection renders a section and its elements.
 func (e *Engine) renderSection(section *models.Section) error {
-	// Handle page break before
-	if section.PageBreakBefore {
+	rendered := false
+	renderCurrentContext := func() error {
+		if !e.shouldRenderCondition(section.Condition) {
+			return nil
+		}
+
+		if !rendered && section.PageBreakBefore {
+			e.pdf.AddPage()
+		}
+
+		rendered = true
+		return e.withFlowOffset(section.PaddingLeft, func() error {
+			return e.renderSectionElements(section)
+		})
+	}
+
+	if section.Loop != "" {
+		loopVariable := section.LoopVariable
+		if loopVariable == "" {
+			loopVariable = "item"
+		}
+
+		items, ok := e.resolveLoopItems(section.Loop)
+		if !ok {
+			return nil
+		}
+
+		for _, item := range items {
+			if err := e.withScopedData(loopVariable, item, renderCurrentContext); err != nil {
+				return err
+			}
+		}
+	} else if err := renderCurrentContext(); err != nil {
+		return err
+	}
+
+	if rendered && section.PageBreakAfter {
 		e.pdf.AddPage()
 	}
 
-	// Render elements in document order
+	return nil
+}
+
+func (e *Engine) renderSectionElements(section *models.Section) error {
 	for _, elem := range section.Elements {
+		if !e.shouldRenderCondition(e.getElementCondition(elem)) {
+			continue
+		}
+
 		switch elem.Type {
 		case "text":
 			e.renderText(elem.Text)
@@ -189,17 +238,250 @@ func (e *Engine) renderSection(section *models.Section) error {
 			e.renderLine(elem.Line)
 		case "rectangle":
 			e.renderRectangle(elem.Rectangle)
+		case "row":
+			if err := e.renderRow(elem.Row); err != nil {
+				return err
+			}
+		case "spacer":
+			e.renderSpacer(elem.Spacer)
 		case "pageBreak":
 			e.pdf.AddPage()
 		}
 	}
 
-	// Handle page break after
-	if section.PageBreakAfter {
-		e.pdf.AddPage()
+	return nil
+}
+
+func (e *Engine) getElementCondition(elem models.SectionElement) string {
+	switch elem.Type {
+	case "text":
+		if elem.Text != nil {
+			return elem.Text.Condition
+		}
+	case "image":
+		if elem.Image != nil {
+			return elem.Image.Condition
+		}
+	case "table":
+		if elem.Table != nil {
+			return elem.Table.Condition
+		}
+	case "list":
+		if elem.List != nil {
+			return elem.List.Condition
+		}
+	case "keyValueList":
+		if elem.KVList != nil {
+			return elem.KVList.Condition
+		}
+	case "line":
+		if elem.Line != nil {
+			return elem.Line.Condition
+		}
+	case "rectangle":
+		if elem.Rectangle != nil {
+			return elem.Rectangle.Condition
+		}
+	case "row":
+		if elem.Row != nil {
+			return elem.Row.Condition
+		}
+	case "spacer":
+		if elem.Spacer != nil {
+			return elem.Spacer.Condition
+		}
+	case "pageBreak":
+		if elem.PageBreak != nil {
+			return elem.PageBreak.Condition
+		}
 	}
 
-	return nil
+	return ""
+}
+
+func (e *Engine) shouldRenderCondition(condition string) bool {
+	if strings.TrimSpace(condition) == "" {
+		return true
+	}
+
+	result := strings.ToLower(strings.TrimSpace(e.processTemplate(condition)))
+	switch result {
+	case "", "0", "false", "nil", "null", "<no value>":
+		return false
+	default:
+		return true
+	}
+}
+
+func (e *Engine) withScopedData(key string, value interface{}, fn func() error) error {
+	original := e.data
+	scoped := cloneDataMap(original)
+	scoped[key] = value
+	e.data = scoped
+	defer func() {
+		e.data = original
+	}()
+
+	return fn()
+}
+
+func (e *Engine) withFlowOffset(offset float64, fn func() error) error {
+	original := e.flowOffsetLeft
+	e.flowOffsetLeft += offset
+	defer func() {
+		e.flowOffsetLeft = original
+	}()
+
+	return fn()
+}
+
+func (e *Engine) flowLeftMargin() float64 {
+	marginLeft, _, _, _ := e.pdf.GetMargins()
+	return marginLeft + e.flowOffsetLeft
+}
+
+func cloneDataMap(source map[string]interface{}) map[string]interface{} {
+	if source == nil {
+		return map[string]interface{}{}
+	}
+
+	cloned := make(map[string]interface{}, len(source)+1)
+	for key, value := range source {
+		cloned[key] = value
+	}
+
+	return cloned
+}
+
+func (e *Engine) resolveLoopItems(loop string) ([]interface{}, bool) {
+	value, ok := e.resolveTemplateValue(loop)
+	if !ok {
+		return nil, false
+	}
+
+	items := toInterfaceSlice(value)
+	if len(items) == 0 {
+		return nil, false
+	}
+
+	return items, true
+}
+
+func (e *Engine) resolveTemplateValue(tmpl string) (interface{}, bool) {
+	path := extractDataPath(tmpl)
+	if len(path) == 0 {
+		return nil, false
+	}
+
+	var current interface{} = e.data
+	for _, part := range path {
+		var ok bool
+		current, ok = resolveFieldValue(current, part)
+		if !ok {
+			return nil, false
+		}
+	}
+
+	return current, true
+}
+
+func extractDataPath(tmpl string) []string {
+	key := trimSpace(tmpl)
+	if strings.HasPrefix(key, "{{") && strings.HasSuffix(key, "}}") {
+		key = trimSpace(key[2 : len(key)-2])
+	}
+
+	key = strings.TrimPrefix(key, ".")
+	if key == "" {
+		return nil
+	}
+
+	parts := strings.Split(key, ".")
+	path := make([]string, 0, len(parts))
+	for _, part := range parts {
+		part = trimSpace(part)
+		if part != "" {
+			path = append(path, part)
+		}
+	}
+
+	return path
+}
+
+func resolveFieldValue(current interface{}, field string) (interface{}, bool) {
+	if current == nil {
+		return nil, false
+	}
+
+	if data, ok := current.(map[string]interface{}); ok {
+		value, found := data[field]
+		return value, found
+	}
+
+	value := reflect.ValueOf(current)
+	for value.IsValid() && (value.Kind() == reflect.Interface || value.Kind() == reflect.Pointer) {
+		if value.IsNil() {
+			return nil, false
+		}
+		value = value.Elem()
+	}
+
+	if !value.IsValid() {
+		return nil, false
+	}
+
+	switch value.Kind() {
+	case reflect.Map:
+		if value.Type().Key().Kind() != reflect.String {
+			return nil, false
+		}
+		result := value.MapIndex(reflect.ValueOf(field))
+		if !result.IsValid() {
+			return nil, false
+		}
+		return result.Interface(), true
+	case reflect.Struct:
+		result := value.FieldByName(field)
+		if !result.IsValid() || !result.CanInterface() {
+			return nil, false
+		}
+		return result.Interface(), true
+	default:
+		return nil, false
+	}
+}
+
+func toInterfaceSlice(value interface{}) []interface{} {
+	if value == nil {
+		return nil
+	}
+
+	if items, ok := value.([]interface{}); ok {
+		return items
+	}
+
+	rv := reflect.ValueOf(value)
+	for rv.IsValid() && (rv.Kind() == reflect.Interface || rv.Kind() == reflect.Pointer) {
+		if rv.IsNil() {
+			return nil
+		}
+		rv = rv.Elem()
+	}
+
+	if !rv.IsValid() {
+		return nil
+	}
+
+	if rv.Kind() != reflect.Slice && rv.Kind() != reflect.Array {
+		return nil
+	}
+
+	items := make([]interface{}, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		items[i] = rv.Index(i).Interface()
+	}
+
+	return items
 }
 
 // processTemplate processes a template string with data.

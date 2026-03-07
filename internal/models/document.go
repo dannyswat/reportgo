@@ -1,7 +1,10 @@
 // Package models defines the document configuration structures.
 package models
 
-import "encoding/xml"
+import (
+	"encoding/xml"
+	"fmt"
+)
 
 // Document represents the document configuration.
 type Document struct {
@@ -59,17 +62,20 @@ type SectionElement struct {
 	KVList    *KeyValueList
 	Line      *Line
 	Rectangle *Rectangle
+	Row       *Row
+	Spacer    *Spacer
 	PageBreak *PageBreak
 }
 
 // Section represents a content section in the report.
 type Section struct {
-	Name            string `xml:"name,attr"`
-	PageBreakBefore bool   `xml:"pageBreakBefore,attr"`
-	PageBreakAfter  bool   `xml:"pageBreakAfter,attr"`
-	Condition       string `xml:"condition,attr"`
-	Loop            string `xml:"loop,attr"`
-	LoopVariable    string `xml:"loopVariable,attr"`
+	Name            string  `xml:"name,attr"`
+	PageBreakBefore bool    `xml:"pageBreakBefore,attr"`
+	PageBreakAfter  bool    `xml:"pageBreakAfter,attr"`
+	Condition       string  `xml:"condition,attr"`
+	Loop            string  `xml:"loop,attr"`
+	LoopVariable    string  `xml:"loopVariable,attr"`
+	PaddingLeft     float64 `xml:"paddingLeft,attr"`
 
 	// Elements in document order
 	Elements []SectionElement
@@ -82,6 +88,8 @@ type Section struct {
 	KeyValueLists []KeyValueList `xml:"-"`
 	Lines         []Line         `xml:"-"`
 	Rectangles    []Rectangle    `xml:"-"`
+	Rows          []Row          `xml:"-"`
+	Spacers       []Spacer       `xml:"-"`
 	PageBreaks    []PageBreak    `xml:"-"`
 }
 
@@ -102,6 +110,10 @@ func (s *Section) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
 			s.Loop = attr.Value
 		case "loopVariable":
 			s.LoopVariable = attr.Value
+		case "paddingLeft":
+			if _, err := fmt.Sscanf(attr.Value, "%f", &s.PaddingLeft); err != nil {
+				s.PaddingLeft = 0
+			}
 		}
 	}
 
@@ -172,6 +184,22 @@ func (s *Section) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
 				elem.Type = "rectangle"
 				elem.Rectangle = &rect
 				s.Rectangles = append(s.Rectangles, rect)
+			case "row":
+				var row Row
+				if err := d.DecodeElement(&row, &t); err != nil {
+					return err
+				}
+				elem.Type = "row"
+				elem.Row = &row
+				s.Rows = append(s.Rows, row)
+			case "spacer":
+				var spacer Spacer
+				if err := d.DecodeElement(&spacer, &t); err != nil {
+					return err
+				}
+				elem.Type = "spacer"
+				elem.Spacer = &spacer
+				s.Spacers = append(s.Spacers, spacer)
 			case "pageBreak":
 				var pb PageBreak
 				if err := d.DecodeElement(&pb, &t); err != nil {
@@ -188,6 +216,58 @@ func (s *Section) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
 				continue
 			}
 			s.Elements = append(s.Elements, elem)
+		case xml.EndElement:
+			if t.Name == start.Name {
+				return nil
+			}
+		}
+	}
+}
+
+// UnmarshalXML implements custom XML unmarshaling for rows.
+func (r *Row) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
+	for _, attr := range start.Attr {
+		switch attr.Name.Local {
+		case "condition":
+			r.Condition = attr.Value
+		case "spacingAfter":
+			if _, err := fmt.Sscanf(attr.Value, "%f", &r.SpacingAfter); err != nil {
+				r.SpacingAfter = 0
+			}
+		}
+	}
+
+	for {
+		token, err := d.Token()
+		if err != nil {
+			return err
+		}
+
+		switch t := token.(type) {
+		case xml.StartElement:
+			var elem SectionElement
+			switch t.Name.Local {
+			case "text":
+				var text Text
+				if err := d.DecodeElement(&text, &t); err != nil {
+					return err
+				}
+				elem.Type = "text"
+				elem.Text = &text
+			case "image":
+				var img Image
+				if err := d.DecodeElement(&img, &t); err != nil {
+					return err
+				}
+				elem.Type = "image"
+				elem.Image = &img
+			default:
+				if err := d.Skip(); err != nil {
+					return err
+				}
+				continue
+			}
+			r.Elements = append(r.Elements, elem)
 		case xml.EndElement:
 			if t.Name == start.Name {
 				return nil

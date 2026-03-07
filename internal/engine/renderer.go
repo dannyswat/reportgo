@@ -2,6 +2,8 @@
 package engine
 
 import (
+	"fmt"
+
 	"github.com/dannyswat/reportgo/internal/models"
 )
 
@@ -12,11 +14,18 @@ func (e *Engine) renderText(text *models.Text) {
 	}
 
 	content := e.processTemplate(text.Content)
+	currentX, currentY := e.pdf.GetXY()
 
 	// Handle positioning
 	if text.X != 0 || text.Y != 0 {
 		x := text.X
 		y := text.Y
+		if text.X == 0 {
+			x = currentX
+		}
+		if text.Y == 0 {
+			y = currentY
+		}
 		sizeX, sizeY := e.pdf.GetPageSize()
 		if x < 0 {
 			x = sizeX + x
@@ -25,6 +34,8 @@ func (e *Engine) renderText(text *models.Text) {
 			y = sizeY + y
 		}
 		e.pdf.SetXY(x, y)
+	} else {
+		e.pdf.SetX(e.flowLeftMargin())
 	}
 
 	// Get alignment
@@ -43,10 +54,15 @@ func (e *Engine) renderText(text *models.Text) {
 	if text.Width > 0 {
 		e.pdf.MultiCell(text.Width, lineHeight, content, "", align, false)
 	} else if text.Wrap {
-		// Use full available width for wrapping
+		// Wrap against the effective current X position so indented content
+		// stays within the right content boundary.
 		pageWidth, _ := e.pdf.GetPageSize()
-		marginLeft, _, marginRight, _ := e.pdf.GetMargins()
-		availableWidth := pageWidth - marginLeft - marginRight
+		_, _, marginRight, _ := e.pdf.GetMargins()
+		currentX, _ := e.pdf.GetXY()
+		availableWidth := pageWidth - currentX - marginRight
+		if availableWidth <= 0 {
+			availableWidth = 1
+		}
 		e.pdf.MultiCell(availableWidth, lineHeight, content, "", align, false)
 	} else {
 		e.pdf.CellFormat(0, lineHeight, content, "", 1, align, false, 0, "")
@@ -64,17 +80,22 @@ func (e *Engine) renderImage(img *models.Image) {
 
 	x := img.X
 	y := img.Y
+	if x == 0 {
+		x, _ = e.pdf.GetXY()
+	}
 
 	// Handle alignment
 	if img.Align == "C" {
 		pageWidth, _ := e.pdf.GetPageSize()
-		marginLeft, _, marginRight, _ := e.pdf.GetMargins()
-		contentWidth := pageWidth - marginLeft - marginRight
-		x = marginLeft + (contentWidth-img.Width)/2
+		_, _, marginRight, _ := e.pdf.GetMargins()
+		contentWidth := pageWidth - e.flowLeftMargin() - marginRight
+		x = e.flowLeftMargin() + (contentWidth-img.Width)/2
 	} else if img.Align == "R" {
 		pageWidth, _ := e.pdf.GetPageSize()
 		_, _, marginRight, _ := e.pdf.GetMargins()
 		x = pageWidth - marginRight - img.Width
+	} else if img.X == 0 {
+		x = e.flowLeftMargin()
 	}
 
 	if y == 0 {
@@ -95,6 +116,8 @@ func (e *Engine) renderImage(img *models.Image) {
 
 // renderTable renders a table element.
 func (e *Engine) renderTable(table *models.Table) {
+	e.pdf.SetX(e.flowLeftMargin())
+
 	// Apply header style
 	if table.HeaderStyle != "" {
 		e.applyStyle(table.HeaderStyle)
@@ -134,6 +157,8 @@ func (e *Engine) renderTable(table *models.Table) {
 		if table.CellStyle != "" {
 			e.applyStyle(table.CellStyle)
 		}
+
+		e.pdf.SetX(e.flowLeftMargin())
 
 		// Alternate row colors
 		fill := false
@@ -200,10 +225,8 @@ func (e *Engine) renderList(list *models.List) {
 		indent = 10
 	}
 
-	marginLeft, _, _, _ := e.pdf.GetMargins()
-
 	for _, str := range items {
-		e.pdf.SetX(marginLeft + indent)
+		e.pdf.SetX(e.flowLeftMargin() + indent)
 		e.pdf.CellFormat(10, 6, bullet, "", 0, "L", false, 0, "")
 		e.pdf.CellFormat(0, 6, str, "", 1, "L", false, 0, "")
 	}
@@ -236,6 +259,7 @@ func (e *Engine) renderKeyValueList(kvList *models.KeyValueList) {
 
 	for _, item := range kvList.Items {
 		value := e.processTemplate(item.Value)
+		e.pdf.SetX(e.flowLeftMargin())
 		e.pdf.CellFormat(keyWidth, 6, item.Key, "", 0, "L", false, 0, "")
 		e.pdf.CellFormat(valueWidth, 6, value, "", 1, valueAlign, false, 0, "")
 	}
@@ -243,6 +267,134 @@ func (e *Engine) renderKeyValueList(kvList *models.KeyValueList) {
 	if kvList.SpacingAfter > 0 {
 		e.pdf.Ln(kvList.SpacingAfter)
 	}
+}
+
+// renderSpacer advances the cursor without drawing content.
+func (e *Engine) renderSpacer(spacer *models.Spacer) {
+	if spacer == nil {
+		return
+	}
+
+	if spacer.Height > 0 {
+		e.pdf.Ln(spacer.Height)
+	}
+
+	if spacer.SpacingAfter > 0 {
+		e.pdf.Ln(spacer.SpacingAfter)
+	}
+}
+
+// renderRow renders child elements horizontally and advances by the tallest child.
+func (e *Engine) renderRow(row *models.Row) error {
+	if row == nil {
+		return nil
+	}
+
+	visible := make([]models.SectionElement, 0, len(row.Elements))
+	for _, elem := range row.Elements {
+		if e.shouldRenderCondition(e.getElementCondition(elem)) {
+			visible = append(visible, elem)
+		}
+	}
+
+	baseX := e.flowLeftMargin()
+	baseY := e.pdf.GetY()
+	currentX := baseX
+	maxY := baseY
+
+	for idx, elem := range visible {
+		switch elem.Type {
+		case "text":
+			if elem.Text == nil {
+				continue
+			}
+
+			text := *elem.Text
+			text.X = currentX + text.X
+			text.Y = baseY + text.Y
+			resolvedWidth := e.resolveRowTextWidth(&text, idx == len(visible)-1)
+			if resolvedWidth <= 0 {
+				return fmt.Errorf("row text width resolved to zero")
+			}
+			text.Width = resolvedWidth
+			text.SpacingAfter = 0
+			e.renderText(&text)
+
+			_, childEndY := e.pdf.GetXY()
+			if childEndY > maxY {
+				maxY = childEndY
+			}
+			childEndX := text.X + text.Width
+			if childEndX > currentX {
+				currentX = childEndX
+			}
+			e.pdf.SetXY(currentX, baseY)
+		case "image":
+			if elem.Image == nil {
+				continue
+			}
+			if elem.Image.Width <= 0 || elem.Image.Height <= 0 {
+				return fmt.Errorf("row image requires width and height")
+			}
+
+			img := *elem.Image
+			img.X = currentX + img.X
+			img.Y = baseY + img.Y
+			img.Align = ""
+			img.SpacingAfter = 0
+			e.renderImage(&img)
+
+			childEndY := img.Y + img.Height
+			if childEndY > maxY {
+				maxY = childEndY
+			}
+			childEndX := img.X + img.Width
+			if childEndX > currentX {
+				currentX = childEndX
+			}
+			e.pdf.SetXY(currentX, baseY)
+		default:
+			return fmt.Errorf("unsupported row child type: %s", elem.Type)
+		}
+	}
+
+	e.pdf.SetXY(baseX, maxY)
+	if row.SpacingAfter > 0 {
+		e.pdf.Ln(row.SpacingAfter)
+	}
+
+	return nil
+}
+
+func (e *Engine) resolveRowTextWidth(text *models.Text, isLast bool) float64 {
+	if text == nil {
+		return 0
+	}
+
+	if text.Width > 0 {
+		return text.Width
+	}
+
+	pageWidth, _ := e.pdf.GetPageSize()
+	_, _, marginRight, _ := e.pdf.GetMargins()
+	remainingWidth := pageWidth - text.X - marginRight
+	if remainingWidth <= 0 {
+		return 0
+	}
+
+	if text.Wrap || isLast {
+		return remainingWidth
+	}
+
+	contentWidth := e.pdf.GetStringWidth(e.processTemplate(text.Content))
+	if contentWidth <= 0 {
+		return remainingWidth
+	}
+	if contentWidth > remainingWidth {
+		return remainingWidth
+	}
+
+	return contentWidth
 }
 
 // renderLine renders a line element.
@@ -285,6 +437,18 @@ func (e *Engine) renderLine(line *models.Line) {
 	}
 
 	e.pdf.Line(x1, y1, x2, y2)
+
+	if line.SpacingAfter > 0 {
+		targetY := currentY
+		if y1 > targetY {
+			targetY = y1
+		}
+		if y2 > targetY {
+			targetY = y2
+		}
+		e.pdf.SetY(targetY)
+		e.pdf.Ln(line.SpacingAfter)
+	}
 }
 
 // renderRectangle renders a rectangle element.

@@ -152,6 +152,30 @@ func (r Rectangle) GetType() string { return "rectangle" }
 // GetCondition returns the condition for rendering.
 func (r Rectangle) GetCondition() string { return r.Condition }
 
+// Spacer represents vertical space in document flow.
+type Spacer struct {
+	BaseElement
+	Height float64 `xml:"height,attr"`
+}
+
+// GetType returns the element type.
+func (s Spacer) GetType() string { return "spacer" }
+
+// GetCondition returns the condition for rendering.
+func (s Spacer) GetCondition() string { return s.Condition }
+
+// Row represents a horizontal flow container.
+type Row struct {
+	BaseElement
+	Elements []SectionElement `xml:"-"`
+}
+
+// GetType returns the element type.
+func (r Row) GetType() string { return "row" }
+
+// GetCondition returns the condition for rendering.
+func (r Row) GetCondition() string { return r.Condition }
+
 // PageBreak represents a page break element.
 type PageBreak struct {
 	Condition string `xml:"condition,attr"`

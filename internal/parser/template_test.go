@@ -74,3 +74,54 @@ func TestParseTemplateRejectsStyleInheritanceCycles(t *testing.T) {
 		t.Fatalf("expected cycle detection error")
 	}
 }
+
+func TestParseTemplateParsesRowGridColumns(t *testing.T) {
+	report, err := ParseTemplateFromString(`<?xml version="1.0" encoding="UTF-8"?>
+<report xmlns="http://reportgo.io/schema/v1" version="1.0">
+    <document orientation="portrait" format="A4"/>
+    <sections>
+        <section name="main">
+            <rowgrid columns="3" spacingAfter="4">
+                <col>
+                    <text style="body">First</text>
+                    <spacer height="2"/>
+                    <text>Second</text>
+                </col>
+                <col>
+                    <row>
+                        <text width="20">Nested</text>
+                        <text width="20">Row</text>
+                    </row>
+                </col>
+            </rowgrid>
+        </section>
+    </sections>
+</report>`)
+	if err != nil {
+		t.Fatalf("ParseTemplateFromString returned error: %v", err)
+	}
+
+	if len(report.Sections.Sections) != 1 {
+		t.Fatalf("expected 1 section, got %d", len(report.Sections.Sections))
+	}
+	section := report.Sections.Sections[0]
+	if len(section.Elements) != 1 {
+		t.Fatalf("expected 1 section element, got %d", len(section.Elements))
+	}
+	if section.Elements[0].Type != "rowgrid" || section.Elements[0].RowGrid == nil {
+		t.Fatalf("expected rowgrid element, got %#v", section.Elements[0])
+	}
+	rowGrid := section.Elements[0].RowGrid
+	if rowGrid.Columns != 3 {
+		t.Fatalf("expected rowgrid columns to be 3, got %d", rowGrid.Columns)
+	}
+	if len(rowGrid.Cols) != 2 {
+		t.Fatalf("expected 2 rowgrid cols, got %d", len(rowGrid.Cols))
+	}
+	if len(rowGrid.Cols[0].Elements) != 3 {
+		t.Fatalf("expected first col to preserve 3 child elements, got %d", len(rowGrid.Cols[0].Elements))
+	}
+	if rowGrid.Cols[1].Elements[0].Type != "row" {
+		t.Fatalf("expected nested row child in second col, got %s", rowGrid.Cols[1].Elements[0].Type)
+	}
+}

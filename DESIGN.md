@@ -59,6 +59,7 @@ Sections preserve element order and can contain:
 - `line`
 - `rectangle`
 - `row`
+- `rowgrid`
 - `spacer`
 - `pageBreak`
 
@@ -68,6 +69,12 @@ Rows are intentionally narrow in scope:
 - `image` children must provide both `width` and `height`
 - `text` children may omit `width`; the last text child expands to remaining width
 - child `x` and `y` offsets are interpreted relative to the row origin
+
+Rowgrids divide the current flow width into equal columns:
+
+- `columns` controls the number of equal parts
+- each `<col>` can contain the same flow elements that a section can contain
+- the overall rowgrid height is the tallest rendered column
 
 ### Styling
 
@@ -142,6 +149,7 @@ The engine supports a mix of flow-based and positioned rendering:
 - text and images can use explicit `x` and `y` coordinates
 - wrapped text uses the current effective content width rather than raw page width
 - sections can shift flow content with `paddingLeft`
+- rowgrids constrain nested flow content to each column's width
 - sections support `pageBreakBefore` and `pageBreakAfter`
 - `spacer` advances the cursor without drawing
 - `pageBreak` forces a new page immediately
@@ -355,6 +363,29 @@ Supported attributes:
 
 Supported attributes:
 
+- `condition`
+- `spacingAfter`
+
+### RowGrid
+
+```xml
+<rowgrid columns="3" spacingAfter="4">
+    <col>
+        <text style="body">First</text>
+        <text style="body" wrap="true">More detail</text>
+    </col>
+    <col>
+        <text style="body">Second</text>
+    </col>
+    <col>
+        <text style="body">Third</text>
+    </col>
+</rowgrid>
+```
+
+Supported attributes:
+
+- `columns`
 - `condition`
 - `spacingAfter`
 

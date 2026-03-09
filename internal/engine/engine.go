@@ -19,13 +19,14 @@ import (
 
 // Engine is the core report generation engine.
 type Engine struct {
-	report         *models.Report
-	data           map[string]interface{}
-	pdf            *gofpdf.Fpdf
-	styles         map[string]*models.Style
-	funcMap        template.FuncMap
-	flowOffsetLeft float64
-	embeddedFonts  []models.EmbeddedFont
+	report          *models.Report
+	data            map[string]interface{}
+	pdf             *gofpdf.Fpdf
+	styles          map[string]*models.Style
+	funcMap         template.FuncMap
+	flowOffsetLeft  float64
+	flowOffsetRight float64
+	embeddedFonts   []models.EmbeddedFont
 }
 
 // New creates a new Engine instance.
@@ -257,35 +258,51 @@ func (e *Engine) renderSection(section *models.Section) error {
 }
 
 func (e *Engine) renderSectionElements(section *models.Section) error {
-	for _, elem := range section.Elements {
+	return e.renderElements(section.Elements)
+}
+
+func (e *Engine) renderElements(elements []models.SectionElement) error {
+	for _, elem := range elements {
 		if !e.shouldRenderCondition(e.getElementCondition(elem)) {
 			continue
 		}
 
-		switch elem.Type {
-		case "text":
-			e.renderText(elem.Text)
-		case "image":
-			e.renderImage(elem.Image)
-		case "table":
-			e.renderTable(elem.Table)
-		case "list":
-			e.renderList(elem.List)
-		case "keyValueList":
-			e.renderKeyValueList(elem.KVList)
-		case "line":
-			e.renderLine(elem.Line)
-		case "rectangle":
-			e.renderRectangle(elem.Rectangle)
-		case "row":
-			if err := e.renderRow(elem.Row); err != nil {
-				return err
-			}
-		case "spacer":
-			e.renderSpacer(elem.Spacer)
-		case "pageBreak":
-			e.pdf.AddPage()
+		if err := e.renderElement(elem); err != nil {
+			return err
 		}
+	}
+
+	return nil
+}
+
+func (e *Engine) renderElement(elem models.SectionElement) error {
+	switch elem.Type {
+	case "text":
+		e.renderText(elem.Text)
+	case "image":
+		e.renderImage(elem.Image)
+	case "table":
+		e.renderTable(elem.Table)
+	case "list":
+		e.renderList(elem.List)
+	case "keyValueList":
+		e.renderKeyValueList(elem.KVList)
+	case "line":
+		e.renderLine(elem.Line)
+	case "rectangle":
+		e.renderRectangle(elem.Rectangle)
+	case "row":
+		if err := e.renderRow(elem.Row); err != nil {
+			return err
+		}
+	case "rowgrid":
+		if err := e.renderRowGrid(elem.RowGrid); err != nil {
+			return err
+		}
+	case "spacer":
+		e.renderSpacer(elem.Spacer)
+	case "pageBreak":
+		e.pdf.AddPage()
 	}
 
 	return nil
@@ -324,6 +341,10 @@ func (e *Engine) getElementCondition(elem models.SectionElement) string {
 	case "row":
 		if elem.Row != nil {
 			return elem.Row.Condition
+		}
+	case "rowgrid":
+		if elem.RowGrid != nil {
+			return elem.RowGrid.Condition
 		}
 	case "spacer":
 		if elem.Spacer != nil {
@@ -365,10 +386,17 @@ func (e *Engine) withScopedData(key string, value interface{}, fn func() error) 
 }
 
 func (e *Engine) withFlowOffset(offset float64, fn func() error) error {
+	return e.withFlowBounds(offset, 0, fn)
+}
+
+func (e *Engine) withFlowBounds(leftOffset, rightOffset float64, fn func() error) error {
 	original := e.flowOffsetLeft
-	e.flowOffsetLeft += offset
+	originalRight := e.flowOffsetRight
+	e.flowOffsetLeft += leftOffset
+	e.flowOffsetRight += rightOffset
 	defer func() {
 		e.flowOffsetLeft = original
+		e.flowOffsetRight = originalRight
 	}()
 
 	return fn()
@@ -377,6 +405,21 @@ func (e *Engine) withFlowOffset(offset float64, fn func() error) error {
 func (e *Engine) flowLeftMargin() float64 {
 	marginLeft, _, _, _ := e.pdf.GetMargins()
 	return marginLeft + e.flowOffsetLeft
+}
+
+func (e *Engine) flowRightMargin() float64 {
+	_, _, marginRight, _ := e.pdf.GetMargins()
+	return marginRight + e.flowOffsetRight
+}
+
+func (e *Engine) flowContentWidth() float64 {
+	pageWidth, _ := e.pdf.GetPageSize()
+	return pageWidth - e.flowLeftMargin() - e.flowRightMargin()
+}
+
+func (e *Engine) flowAvailableWidthFrom(x float64) float64 {
+	pageWidth, _ := e.pdf.GetPageSize()
+	return pageWidth - x - e.flowRightMargin()
 }
 
 func cloneDataMap(source map[string]interface{}) map[string]interface{} {

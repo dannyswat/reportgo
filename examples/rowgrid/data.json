@@ -1,0 +1,16 @@
+{
+  "Title": "RowGrid Layout Example",
+  "Summary": "This template exercises the rowgrid element by splitting content into equal-width columns while allowing each column to stack multiple text elements, spacers, and nested row content.",
+  "Col1Title": "Reliability",
+  "Col1Value": "99.94%",
+  "Col1Body": "Equal-width columns work well for card-style summaries where the amount of supporting narrative varies per column.",
+  "Col2Title": "Incidents",
+  "Col2Value": "4",
+  "Col2Body": "The second column includes a spacer between the metric and the paragraph to show that regular flow elements stack naturally inside a rowgrid column.",
+  "Col3Title": "Lead Time",
+  "Col3Value": "6.2d",
+  "Col3Body": "Columns can also contain nested row elements for compact label and value pairs.",
+  "Col3Owner": "Platform",
+  "LeftDetail": "The left detail area can hold a longer paragraph and should wrap within half of the available content width rather than using the full page width.",
+  "RightDetail": "The right detail area is a separate flow context with the same width as the left one, so both columns stay aligned even when their content heights differ."
+}

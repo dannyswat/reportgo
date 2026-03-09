@@ -56,16 +56,19 @@ func (e *Engine) renderText(text *models.Text) {
 	} else if text.Wrap {
 		// Wrap against the effective current X position so indented content
 		// stays within the right content boundary.
-		pageWidth, _ := e.pdf.GetPageSize()
-		_, _, marginRight, _ := e.pdf.GetMargins()
 		currentX, _ := e.pdf.GetXY()
-		availableWidth := pageWidth - currentX - marginRight
+		availableWidth := e.flowAvailableWidthFrom(currentX)
 		if availableWidth <= 0 {
 			availableWidth = 1
 		}
 		e.pdf.MultiCell(availableWidth, lineHeight, content, "", align, false)
 	} else {
-		e.pdf.CellFormat(0, lineHeight, content, "", 1, align, false, 0, "")
+		currentX, _ := e.pdf.GetXY()
+		availableWidth := e.flowAvailableWidthFrom(currentX)
+		if availableWidth <= 0 {
+			availableWidth = 1
+		}
+		e.pdf.CellFormat(availableWidth, lineHeight, content, "", 1, align, false, 0, "")
 	}
 
 	// Add spacing after
@@ -86,14 +89,11 @@ func (e *Engine) renderImage(img *models.Image) {
 
 	// Handle alignment
 	if img.Align == "C" {
-		pageWidth, _ := e.pdf.GetPageSize()
-		_, _, marginRight, _ := e.pdf.GetMargins()
-		contentWidth := pageWidth - e.flowLeftMargin() - marginRight
+		contentWidth := e.flowContentWidth()
 		x = e.flowLeftMargin() + (contentWidth-img.Width)/2
 	} else if img.Align == "R" {
 		pageWidth, _ := e.pdf.GetPageSize()
-		_, _, marginRight, _ := e.pdf.GetMargins()
-		x = pageWidth - marginRight - img.Width
+		x = pageWidth - e.flowRightMargin() - img.Width
 	} else if img.X == 0 {
 		x = e.flowLeftMargin()
 	}
@@ -226,9 +226,15 @@ func (e *Engine) renderList(list *models.List) {
 	}
 
 	for _, str := range items {
-		e.pdf.SetX(e.flowLeftMargin() + indent)
-		e.pdf.CellFormat(10, 6, bullet, "", 0, "L", false, 0, "")
-		e.pdf.CellFormat(0, 6, str, "", 1, "L", false, 0, "")
+		baseX := e.flowLeftMargin() + indent
+		bulletWidth := 10.0
+		e.pdf.SetX(baseX)
+		e.pdf.CellFormat(bulletWidth, 6, bullet, "", 0, "L", false, 0, "")
+		availableWidth := e.flowAvailableWidthFrom(baseX + bulletWidth)
+		if availableWidth <= 0 {
+			availableWidth = 1
+		}
+		e.pdf.CellFormat(availableWidth, 6, str, "", 1, "L", false, 0, "")
 	}
 
 	if list.SpacingAfter > 0 {
@@ -259,9 +265,17 @@ func (e *Engine) renderKeyValueList(kvList *models.KeyValueList) {
 
 	for _, item := range kvList.Items {
 		value := e.processTemplate(item.Value)
-		e.pdf.SetX(e.flowLeftMargin())
+		baseX := e.flowLeftMargin()
+		resolvedValueWidth := valueWidth
+		if resolvedValueWidth == 0 {
+			resolvedValueWidth = e.flowAvailableWidthFrom(baseX + keyWidth)
+			if resolvedValueWidth <= 0 {
+				resolvedValueWidth = 1
+			}
+		}
+		e.pdf.SetX(baseX)
 		e.pdf.CellFormat(keyWidth, 6, item.Key, "", 0, "L", false, 0, "")
-		e.pdf.CellFormat(valueWidth, 6, value, "", 1, valueAlign, false, 0, "")
+		e.pdf.CellFormat(resolvedValueWidth, 6, value, "", 1, valueAlign, false, 0, "")
 	}
 
 	if kvList.SpacingAfter > 0 {
@@ -376,8 +390,7 @@ func (e *Engine) resolveRowTextWidth(text *models.Text, isLast bool) float64 {
 	}
 
 	pageWidth, _ := e.pdf.GetPageSize()
-	_, _, marginRight, _ := e.pdf.GetMargins()
-	remainingWidth := pageWidth - text.X - marginRight
+	remainingWidth := pageWidth - text.X - e.flowRightMargin()
 	if remainingWidth <= 0 {
 		return 0
 	}
@@ -395,6 +408,57 @@ func (e *Engine) resolveRowTextWidth(text *models.Text, isLast bool) float64 {
 	}
 
 	return contentWidth
+}
+
+// renderRowGrid renders equal-width columns and advances by the tallest column.
+func (e *Engine) renderRowGrid(rowGrid *models.RowGrid) error {
+	if rowGrid == nil {
+		return nil
+	}
+
+	columnCount := rowGrid.Columns
+	if columnCount < len(rowGrid.Cols) {
+		columnCount = len(rowGrid.Cols)
+	}
+	if columnCount <= 0 {
+		return fmt.Errorf("rowgrid requires at least one column")
+	}
+
+	totalWidth := e.flowContentWidth()
+	if totalWidth <= 0 {
+		return fmt.Errorf("rowgrid width resolved to zero")
+	}
+
+	baseX := e.flowLeftMargin()
+	baseY := e.pdf.GetY()
+	columnWidth := totalWidth / float64(columnCount)
+	maxY := baseY
+
+	for idx := 0; idx < columnCount; idx++ {
+		leftOffset := float64(idx) * columnWidth
+		rightOffset := totalWidth - leftOffset - columnWidth
+
+		e.pdf.SetXY(baseX+leftOffset, baseY)
+
+		if idx < len(rowGrid.Cols) {
+			if err := e.withFlowBounds(leftOffset, rightOffset, func() error {
+				return e.renderElements(rowGrid.Cols[idx].Elements)
+			}); err != nil {
+				return err
+			}
+		}
+
+		if gotY := e.pdf.GetY(); gotY > maxY {
+			maxY = gotY
+		}
+	}
+
+	e.pdf.SetXY(baseX, maxY)
+	if rowGrid.SpacingAfter > 0 {
+		e.pdf.Ln(rowGrid.SpacingAfter)
+	}
+
+	return nil
 }
 
 // renderLine renders a line element.

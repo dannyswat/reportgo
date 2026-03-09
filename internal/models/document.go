@@ -63,6 +63,7 @@ type SectionElement struct {
 	Line      *Line
 	Rectangle *Rectangle
 	Row       *Row
+	RowGrid   *RowGrid
 	Spacer    *Spacer
 	PageBreak *PageBreak
 }
@@ -89,6 +90,7 @@ type Section struct {
 	Lines         []Line         `xml:"-"`
 	Rectangles    []Rectangle    `xml:"-"`
 	Rows          []Row          `xml:"-"`
+	RowGrids      []RowGrid      `xml:"-"`
 	Spacers       []Spacer       `xml:"-"`
 	PageBreaks    []PageBreak    `xml:"-"`
 }
@@ -126,100 +128,71 @@ func (s *Section) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
 
 		switch t := token.(type) {
 		case xml.StartElement:
-			var elem SectionElement
-			switch t.Name.Local {
-			case "text":
-				var text Text
-				if err := d.DecodeElement(&text, &t); err != nil {
-					return err
-				}
-				elem.Type = "text"
-				elem.Text = &text
-				s.Texts = append(s.Texts, text)
-			case "image":
-				var img Image
-				if err := d.DecodeElement(&img, &t); err != nil {
-					return err
-				}
-				elem.Type = "image"
-				elem.Image = &img
-				s.Images = append(s.Images, img)
-			case "table":
-				var table Table
-				if err := d.DecodeElement(&table, &t); err != nil {
-					return err
-				}
-				elem.Type = "table"
-				elem.Table = &table
-				s.Tables = append(s.Tables, table)
-			case "list":
-				var list List
-				if err := d.DecodeElement(&list, &t); err != nil {
-					return err
-				}
-				elem.Type = "list"
-				elem.List = &list
-				s.Lists = append(s.Lists, list)
-			case "keyValueList":
-				var kvList KeyValueList
-				if err := d.DecodeElement(&kvList, &t); err != nil {
-					return err
-				}
-				elem.Type = "keyValueList"
-				elem.KVList = &kvList
-				s.KeyValueLists = append(s.KeyValueLists, kvList)
-			case "line":
-				var line Line
-				if err := d.DecodeElement(&line, &t); err != nil {
-					return err
-				}
-				elem.Type = "line"
-				elem.Line = &line
-				s.Lines = append(s.Lines, line)
-			case "rectangle":
-				var rect Rectangle
-				if err := d.DecodeElement(&rect, &t); err != nil {
-					return err
-				}
-				elem.Type = "rectangle"
-				elem.Rectangle = &rect
-				s.Rectangles = append(s.Rectangles, rect)
-			case "row":
-				var row Row
-				if err := d.DecodeElement(&row, &t); err != nil {
-					return err
-				}
-				elem.Type = "row"
-				elem.Row = &row
-				s.Rows = append(s.Rows, row)
-			case "spacer":
-				var spacer Spacer
-				if err := d.DecodeElement(&spacer, &t); err != nil {
-					return err
-				}
-				elem.Type = "spacer"
-				elem.Spacer = &spacer
-				s.Spacers = append(s.Spacers, spacer)
-			case "pageBreak":
-				var pb PageBreak
-				if err := d.DecodeElement(&pb, &t); err != nil {
-					return err
-				}
-				elem.Type = "pageBreak"
-				elem.PageBreak = &pb
-				s.PageBreaks = append(s.PageBreaks, pb)
-			default:
-				// Skip unknown elements
+			elem, ok, err := decodeSectionElement(d, &t)
+			if err != nil {
+				return err
+			}
+			if !ok {
 				if err := d.Skip(); err != nil {
 					return err
 				}
 				continue
 			}
+			s.appendLegacyElement(elem)
 			s.Elements = append(s.Elements, elem)
 		case xml.EndElement:
 			if t.Name == start.Name {
 				return nil
 			}
+		}
+	}
+}
+
+func (s *Section) appendLegacyElement(elem SectionElement) {
+	switch elem.Type {
+	case "text":
+		if elem.Text != nil {
+			s.Texts = append(s.Texts, *elem.Text)
+		}
+	case "image":
+		if elem.Image != nil {
+			s.Images = append(s.Images, *elem.Image)
+		}
+	case "table":
+		if elem.Table != nil {
+			s.Tables = append(s.Tables, *elem.Table)
+		}
+	case "list":
+		if elem.List != nil {
+			s.Lists = append(s.Lists, *elem.List)
+		}
+	case "keyValueList":
+		if elem.KVList != nil {
+			s.KeyValueLists = append(s.KeyValueLists, *elem.KVList)
+		}
+	case "line":
+		if elem.Line != nil {
+			s.Lines = append(s.Lines, *elem.Line)
+		}
+	case "rectangle":
+		if elem.Rectangle != nil {
+			s.Rectangles = append(s.Rectangles, *elem.Rectangle)
+		}
+	case "row":
+		if elem.Row != nil {
+			s.Rows = append(s.Rows, *elem.Row)
+		}
+	case "rowgrid":
+		if elem.RowGrid != nil {
+			s.RowGrids = append(s.RowGrids, *elem.RowGrid)
+		}
+	case "spacer":
+		if elem.Spacer != nil {
+			s.Spacers = append(s.Spacers, *elem.Spacer)
+		}
+	case "pageBreak":
+		if elem.PageBreak != nil {
+			s.PageBreaks = append(s.PageBreaks, *elem.PageBreak)
 		}
 	}
 }
@@ -274,4 +247,166 @@ func (r *Row) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
 			}
 		}
 	}
+}
+
+// UnmarshalXML implements custom XML unmarshaling for rowgrids.
+func (r *RowGrid) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
+	for _, attr := range start.Attr {
+		switch attr.Name.Local {
+		case "condition":
+			r.Condition = attr.Value
+		case "spacingAfter":
+			if _, err := fmt.Sscanf(attr.Value, "%f", &r.SpacingAfter); err != nil {
+				r.SpacingAfter = 0
+			}
+		case "columns":
+			if _, err := fmt.Sscanf(attr.Value, "%d", &r.Columns); err != nil {
+				r.Columns = 0
+			}
+		}
+	}
+
+	for {
+		token, err := d.Token()
+		if err != nil {
+			return err
+		}
+
+		switch t := token.(type) {
+		case xml.StartElement:
+			if t.Name.Local != "col" {
+				if err := d.Skip(); err != nil {
+					return err
+				}
+				continue
+			}
+
+			var col RowGridColumn
+			if err := d.DecodeElement(&col, &t); err != nil {
+				return err
+			}
+			r.Cols = append(r.Cols, col)
+		case xml.EndElement:
+			if t.Name == start.Name {
+				return nil
+			}
+		}
+	}
+}
+
+// UnmarshalXML implements custom XML unmarshaling for rowgrid columns.
+func (c *RowGridColumn) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
+	for {
+		token, err := d.Token()
+		if err != nil {
+			return err
+		}
+
+		switch t := token.(type) {
+		case xml.StartElement:
+			elem, ok, err := decodeSectionElement(d, &t)
+			if err != nil {
+				return err
+			}
+			if !ok {
+				if err := d.Skip(); err != nil {
+					return err
+				}
+				continue
+			}
+			c.Elements = append(c.Elements, elem)
+		case xml.EndElement:
+			if t.Name == start.Name {
+				return nil
+			}
+		}
+	}
+}
+
+func decodeSectionElement(d *xml.Decoder, start *xml.StartElement) (SectionElement, bool, error) {
+	var elem SectionElement
+
+	switch start.Name.Local {
+	case "text":
+		var text Text
+		if err := d.DecodeElement(&text, start); err != nil {
+			return SectionElement{}, false, err
+		}
+		elem.Type = "text"
+		elem.Text = &text
+	case "image":
+		var img Image
+		if err := d.DecodeElement(&img, start); err != nil {
+			return SectionElement{}, false, err
+		}
+		elem.Type = "image"
+		elem.Image = &img
+	case "table":
+		var table Table
+		if err := d.DecodeElement(&table, start); err != nil {
+			return SectionElement{}, false, err
+		}
+		elem.Type = "table"
+		elem.Table = &table
+	case "list":
+		var list List
+		if err := d.DecodeElement(&list, start); err != nil {
+			return SectionElement{}, false, err
+		}
+		elem.Type = "list"
+		elem.List = &list
+	case "keyValueList":
+		var kvList KeyValueList
+		if err := d.DecodeElement(&kvList, start); err != nil {
+			return SectionElement{}, false, err
+		}
+		elem.Type = "keyValueList"
+		elem.KVList = &kvList
+	case "line":
+		var line Line
+		if err := d.DecodeElement(&line, start); err != nil {
+			return SectionElement{}, false, err
+		}
+		elem.Type = "line"
+		elem.Line = &line
+	case "rectangle":
+		var rect Rectangle
+		if err := d.DecodeElement(&rect, start); err != nil {
+			return SectionElement{}, false, err
+		}
+		elem.Type = "rectangle"
+		elem.Rectangle = &rect
+	case "row":
+		var row Row
+		if err := d.DecodeElement(&row, start); err != nil {
+			return SectionElement{}, false, err
+		}
+		elem.Type = "row"
+		elem.Row = &row
+	case "rowgrid":
+		var rowGrid RowGrid
+		if err := d.DecodeElement(&rowGrid, start); err != nil {
+			return SectionElement{}, false, err
+		}
+		elem.Type = "rowgrid"
+		elem.RowGrid = &rowGrid
+	case "spacer":
+		var spacer Spacer
+		if err := d.DecodeElement(&spacer, start); err != nil {
+			return SectionElement{}, false, err
+		}
+		elem.Type = "spacer"
+		elem.Spacer = &spacer
+	case "pageBreak":
+		var pb PageBreak
+		if err := d.DecodeElement(&pb, start); err != nil {
+			return SectionElement{}, false, err
+		}
+		elem.Type = "pageBreak"
+		elem.PageBreak = &pb
+	default:
+		return SectionElement{}, false, nil
+	}
+
+	return elem, true, nil
 }

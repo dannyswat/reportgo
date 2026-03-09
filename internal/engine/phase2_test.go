@@ -172,3 +172,57 @@ func TestRenderSectionRejectsUnsupportedRowChild(t *testing.T) {
 		t.Fatalf("expected unsupported row child to return an error")
 	}
 }
+
+func TestRenderRowGridUsesTallestColumnHeight(t *testing.T) {
+	engine := newTestEngine(t, nil)
+	engine.applyStyle("body")
+
+	content := "grid"
+	for {
+		width := engine.pdf.GetStringWidth(content)
+		if width > 95 && width < 120 {
+			break
+		}
+		if width >= 120 {
+			t.Fatalf("failed to build rowgrid test content width in expected range, got %.2f", width)
+		}
+		content += " grid"
+	}
+
+	rowGrid := models.RowGrid{
+		BaseElement: models.BaseElement{SpacingAfter: 2},
+		Columns:     2,
+		Cols: []models.RowGridColumn{
+			{
+				Elements: []models.SectionElement{
+					{Type: "text", Text: &models.Text{Style: "body", Wrap: true, Content: content}},
+					{Type: "spacer", Spacer: &models.Spacer{Height: 2}},
+					{Type: "text", Text: &models.Text{Style: "body", Content: "left footer"}},
+				},
+			},
+			{
+				Elements: []models.SectionElement{
+					{Type: "text", Text: &models.Text{Style: "body", Content: "right title"}},
+					{Type: "text", Text: &models.Text{Style: "body", Content: "right body"}},
+				},
+			},
+		},
+	}
+
+	startY := engine.pdf.GetY()
+	if err := engine.renderRowGrid(&rowGrid); err != nil {
+		t.Fatalf("renderRowGrid returned error: %v", err)
+	}
+
+	if got := engine.pdf.GetY(); got <= startY+12 {
+		t.Fatalf("expected rowgrid to advance by tallest column, got %.2f", got)
+	}
+	if got := engine.pdf.GetX(); got != engine.flowLeftMargin() {
+		t.Fatalf("expected rowgrid to restore X to flow margin, got %.2f", got)
+	}
+
+	output := renderedPDF(t, engine)
+	if !strings.Contains(output, "left footer") || !strings.Contains(output, "right title") {
+		t.Fatalf("expected rowgrid column content to be rendered")
+	}
+}

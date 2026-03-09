@@ -18,10 +18,17 @@ go run ./cmd/reportgo \
 	-data examples/payslip/data.json \
 	-output examples/payslip/payslip.pdf
 
+echo "Generating rowgrid example PDF..."
+go run ./cmd/reportgo \
+	-template templates/examples/rowgrid.xml \
+	-data examples/rowgrid/data.json \
+	-output examples/rowgrid/rowgrid.pdf
+
 echo "Generating showcase example PDF..."
 go run ./examples/showcase
 
 echo "Generated PDFs:"
 echo "  examples/simple/simple.pdf"
 echo "  examples/payslip/payslip.pdf"
+echo "  examples/rowgrid/rowgrid.pdf"
 echo "  examples/showcase/showcase.pdf"

@@ -6,7 +6,7 @@ ReportGo is a Go PDF report generator that renders XML templates with JSON or in
 
 - XML templates parsed into a report model with preserved section element order.
 - JSON data loading plus direct `map[string]interface{}` data injection.
-- Flow-oriented elements: text, image, table, list, key-value list, line, rectangle, row, spacer, and page break.
+- Flow-oriented elements: text, image, table, list, key-value list, line, rectangle, row, rowgrid, spacer, and page break.
 - Reusable styles with inheritance through the `extends` attribute.
 - Conditional sections and conditional elements through the `condition` attribute.
 - Section loops through `loop` and `loopVariable`.
@@ -130,7 +130,7 @@ See [DESIGN.md](/Users/dannys/repos/reportgo/DESIGN.md) for the current design a
 
 Sections support `condition`, `loop`, `loopVariable`, `paddingLeft`, `pageBreakBefore`, and `pageBreakAfter`.
 
-Rows provide horizontal flow layout for `text` and `image` children only. Spacer elements add vertical space without drawing content.
+Rows provide horizontal flow layout for `text` and `image` children only. `rowgrid` splits the available width into equal columns and lets each column stack multiple child elements. Spacer elements add vertical space without drawing content.
 
 ## Template Functions
 

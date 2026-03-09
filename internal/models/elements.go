@@ -176,6 +176,24 @@ func (r Row) GetType() string { return "row" }
 // GetCondition returns the condition for rendering.
 func (r Row) GetCondition() string { return r.Condition }
 
+// RowGrid represents an equal-width multi-column flow container.
+type RowGrid struct {
+	BaseElement
+	Columns int             `xml:"columns,attr"`
+	Cols    []RowGridColumn `xml:"-"`
+}
+
+// GetType returns the element type.
+func (r RowGrid) GetType() string { return "rowgrid" }
+
+// GetCondition returns the condition for rendering.
+func (r RowGrid) GetCondition() string { return r.Condition }
+
+// RowGridColumn represents a single equal-width column within a rowgrid.
+type RowGridColumn struct {
+	Elements []SectionElement `xml:"-"`
+}
+
 // PageBreak represents a page break element.
 type PageBreak struct {
 	Condition string `xml:"condition,attr"`

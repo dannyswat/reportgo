@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<report xmlns="http://reportgo.io/schema/v1"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://reportgo.io/schema/v1 ../../schemas/reportgo.xsd"
+        version="1.0">
+
+    <metadata>
+        <name>RowGrid Example</name>
+        <description>Demonstrates equal-width rowgrid columns with stacked content.</description>
+        <author>ReportGo</author>
+    </metadata>
+
+    <document orientation="portrait" unit="mm" format="A4">
+        <margins top="15" right="15" bottom="15" left="15"/>
+    </document>
+
+    <fonts>
+        <font name="notosans" family="Noto Sans" style="" file="fonts/Noto_Sans/static/NotoSans-Regular.ttf"/>
+        <font name="notosans-bold" family="Noto Sans" style="B" file="fonts/Noto_Sans/static/NotoSans-Bold.ttf"/>
+    </fonts>
+
+    <styles>
+        <style name="title">
+            <fontFamily>Noto Sans</fontFamily>
+            <fontStyle>B</fontStyle>
+            <fontSize>20</fontSize>
+            <textColor r="28" g="38" b="54"/>
+            <align>L</align>
+            <lineHeight>7</lineHeight>
+        </style>
+
+        <style name="card_title">
+            <fontFamily>Noto Sans</fontFamily>
+            <fontStyle>B</fontStyle>
+            <fontSize>11</fontSize>
+            <textColor r="73" g="73" b="73"/>
+            <align>L</align>
+            <lineHeight>5</lineHeight>
+        </style>
+
+        <style name="body">
+            <fontFamily>Noto Sans</fontFamily>
+            <fontSize>9</fontSize>
+            <textColor r="75" g="75" b="75"/>
+            <align>L</align>
+            <lineHeight>4.5</lineHeight>
+        </style>
+
+        <style name="metric">
+            <fontFamily>Noto Sans</fontFamily>
+            <fontStyle>B</fontStyle>
+            <fontSize>14</fontSize>
+            <textColor r="135" g="92" b="61"/>
+            <align>L</align>
+            <lineHeight>6</lineHeight>
+        </style>
+    </styles>
+
+    <sections>
+        <section name="hero">
+            <text style="title" spacingAfter="4">{{.Title}}</text>
+            <text style="body" wrap="true" spacingAfter="6">{{.Summary}}</text>
+        </section>
+
+        <section name="three_up_cards">
+            <rowgrid columns="3" spacingAfter="6">
+                <col>
+                    <text style="card_title" spacingAfter="2">{{.Col1Title}}</text>
+                    <text style="metric" spacingAfter="2">{{.Col1Value}}</text>
+                    <text style="body" wrap="true">{{.Col1Body}}</text>
+                </col>
+                <col>
+                    <text style="card_title" spacingAfter="2">{{.Col2Title}}</text>
+                    <text style="metric" spacingAfter="2">{{.Col2Value}}</text>
+                    <spacer height="1"/>
+                    <text style="body" wrap="true">{{.Col2Body}}</text>
+                </col>
+                <col>
+                    <text style="card_title" spacingAfter="2">{{.Col3Title}}</text>
+                    <text style="metric" spacingAfter="2">{{.Col3Value}}</text>
+                    <text style="body" wrap="true" spacingAfter="2">{{.Col3Body}}</text>
+                    <row>
+                        <text style="body">Owner</text>
+                        <text style="body" align="R">{{.Col3Owner}}</text>
+                    </row>
+                </col>
+            </rowgrid>
+        </section>
+
+        <section name="two_up_details">
+            <rowgrid columns="2">
+                <col>
+                    <text style="card_title" spacingAfter="2">Left Detail</text>
+                    <text style="body" wrap="true">{{.LeftDetail}}</text>
+                </col>
+                <col>
+                    <text style="card_title" spacingAfter="2">Right Detail</text>
+                    <text style="body" wrap="true">{{.RightDetail}}</text>
+                </col>
+            </rowgrid>
+        </section>
+    </sections>
+</report>

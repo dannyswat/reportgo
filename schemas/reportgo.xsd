@@ -235,6 +235,7 @@
                 <xs:element name="line" type="rg:LineElementType"/>
                 <xs:element name="rectangle" type="rg:RectangleElementType"/>
                 <xs:element name="row" type="rg:RowElementType"/>
+                <xs:element name="rowgrid" type="rg:RowGridElementType"/>
                 <xs:element name="spacer" type="rg:SpacerElementType"/>
                 <xs:element name="pageBreak" type="rg:PageBreakElementType"/>
             </xs:choice>
@@ -358,6 +359,33 @@
         </xs:sequence>
         <xs:attribute name="spacingAfter" type="rg:PositiveDecimal"/>
         <xs:attribute name="condition" type="rg:TemplateStringType"/>
+    </xs:complexType>
+
+    <xs:complexType name="RowGridElementType">
+        <xs:sequence>
+            <xs:element name="col" type="rg:RowGridColumnType" minOccurs="0" maxOccurs="unbounded"/>
+        </xs:sequence>
+        <xs:attribute name="columns" type="xs:positiveInteger" use="required"/>
+        <xs:attribute name="spacingAfter" type="rg:PositiveDecimal"/>
+        <xs:attribute name="condition" type="rg:TemplateStringType"/>
+    </xs:complexType>
+
+    <xs:complexType name="RowGridColumnType">
+        <xs:sequence>
+            <xs:choice minOccurs="0" maxOccurs="unbounded">
+                <xs:element name="text" type="rg:TextElementType"/>
+                <xs:element name="image" type="rg:ImageElementType"/>
+                <xs:element name="table" type="rg:TableElementType"/>
+                <xs:element name="list" type="rg:ListElementType"/>
+                <xs:element name="keyValueList" type="rg:KeyValueListElementType"/>
+                <xs:element name="line" type="rg:LineElementType"/>
+                <xs:element name="rectangle" type="rg:RectangleElementType"/>
+                <xs:element name="row" type="rg:RowElementType"/>
+                <xs:element name="rowgrid" type="rg:RowGridElementType"/>
+                <xs:element name="spacer" type="rg:SpacerElementType"/>
+                <xs:element name="pageBreak" type="rg:PageBreakElementType"/>
+            </xs:choice>
+        </xs:sequence>
     </xs:complexType>
 
     <xs:complexType name="SpacerElementType">

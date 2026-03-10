@@ -156,6 +156,17 @@ The engine supports a mix of flow-based and positioned rendering:
 
 Headers and footers can render `text`, `image`, and `line` elements when enabled.
 
+### Headers and Footers
+
+Headers and footers repeat on every page automatically when `enabled="true"` is set.
+
+The engine injects two implicit variables into the data context during header and footer rendering:
+
+- `{{.PageNumber}}` — the current page number
+- `{{.TotalPages}}` — the total number of pages in the document
+
+These variables are only available inside `<header>` and `<footer>` elements.
+
 ### Fonts
 
 Fonts can be provided in two ways:
@@ -223,6 +234,45 @@ The following example reflects the features that are actually implemented today:
 ```
 
 ## Element Reference
+
+### Header
+
+```xml
+<header enabled="true" height="15">
+    <text style="header_text" x="15" y="8">{{.CompanyName}}</text>
+    <text style="header_date" x="-15" y="8">{{.ReportDate}}</text>
+    <line x1="15" y1="14" x2="-15" y2="14" color="#003366" width="0.5"/>
+</header>
+```
+
+Supported attributes:
+
+- `enabled` — set to `true` to render on every page
+- `height` — reserved height at the top of each page (default: 15mm)
+
+Child elements: `text`, `image`, `line`.
+
+### Footer
+
+```xml
+<footer enabled="true" height="15">
+    <line x1="15" y1="0" x2="-15" y2="0" color="#003366" width="0.3"/>
+    <text style="footer_left" x="15" y="4">{{.DocumentRef}}</text>
+    <text style="footer_text" x="-15" y="4" align="R">Page {{.PageNumber}} of {{.TotalPages}}</text>
+</footer>
+```
+
+Supported attributes:
+
+- `enabled` — set to `true` to render on every page
+- `height` — reserved height at the bottom of each page (default: 15mm)
+
+Child elements: `text`, `image`, `line`.
+
+Implicit variables available inside header and footer:
+
+- `{{.PageNumber}}` — current page number
+- `{{.TotalPages}}` — total number of pages
 
 ### Text
 
@@ -456,7 +506,6 @@ These behaviors should be treated as not implemented yet, even though parts of t
 - YAML data input is not supported.
 - `WithFontPath`, `WithImagePath`, `WithCompression`, and `WithSchemaValidation` do not currently change renderer behavior.
 - `document.customSize` is parsed but not used when creating the PDF instance.
-- No implicit page-number variables are injected into template data.
 
 ## Repository Layout
 

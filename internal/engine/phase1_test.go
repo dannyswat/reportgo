@@ -140,6 +140,68 @@ func TestRenderTextWrapUsesCurrentX(t *testing.T) {
 	}
 }
 
+func TestRenderHeaderFooterElementsOffsetsFooterY(t *testing.T) {
+	engine := newTestEngine(t, map[string]interface{}{"DocumentRef": "REF-1"})
+	_, pageHeight := engine.pdf.GetPageSize()
+	footerTop := pageHeight - 15
+	engine.pdf.SetY(footerTop)
+
+	engine.renderHeaderFooterElements(footerTop, []models.Text{{
+		Style:   "body",
+		X:       15,
+		Y:       4,
+		Content: "{{.DocumentRef}}",
+	}}, nil, nil)
+
+	if got := engine.pdf.GetY(); got <= footerTop {
+		t.Fatalf("expected footer text to render within footer area, got Y %.2f with footer top %.2f", got, footerTop)
+	}
+	if got := engine.pdf.GetY(); got >= pageHeight {
+		t.Fatalf("expected footer text to stay on page, got Y %.2f with page height %.2f", got, pageHeight)
+	}
+	if _, exists := engine.data["PageNumber"]; exists {
+		t.Fatalf("expected page number variables to be scoped to header/footer rendering")
+	}
+}
+
+func TestSetupHeaderFooterRendersPageNumbersInFooter(t *testing.T) {
+	engine := New()
+	engine.SetReport(&models.Report{
+		Document: models.Document{
+			Orientation: "portrait",
+			Unit:        "mm",
+			Format:      "A4",
+			Margins:     &models.Margins{Top: 10, Right: 10, Bottom: 10, Left: 10},
+		},
+		Styles: &models.Styles{Styles: []models.Style{{
+			Name:       "body",
+			FontFamily: "Arial",
+			FontSize:   12,
+			LineHeight: 5,
+		}}},
+		Footer: &models.Footer{
+			Enabled: true,
+			Height:  15,
+			Texts: []models.Text{{
+				Style:   "body",
+				X:       15,
+				Y:       4,
+				Content: "Page {{.PageNumber}} of {{.TotalPages}}",
+			}},
+		},
+	})
+	engine.SetData(nil)
+	engine.initPDF()
+	engine.pdf.SetCompression(false)
+	engine.setupHeaderFooter()
+	engine.pdf.AddPage()
+
+	output := renderedPDF(t, engine)
+	if !strings.Contains(output, "Page 1 of 1") {
+		t.Fatalf("expected footer page numbers in output, got %q", output)
+	}
+}
+
 func newTestEngine(t *testing.T, data map[string]interface{}) *Engine {
 	t.Helper()
 

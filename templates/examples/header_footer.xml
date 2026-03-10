@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<report xmlns="http://reportgo.io/schema/v1"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://reportgo.io/schema/v1 ../../schemas/reportgo.xsd"
+        version="1.0">
+
+    <metadata>
+        <name>Header Footer Example</name>
+        <description>Demonstrates header and footer repeating on every page with page numbers</description>
+        <author>ReportGo</author>
+    </metadata>
+
+    <document orientation="portrait" unit="mm" format="A4">
+        <margins top="25" right="15" bottom="20" left="15"/>
+    </document>
+
+    <fonts>
+        <font name="notosans" family="Noto Sans" style="" file="fonts/Noto_Sans/static/NotoSans-Regular.ttf"/>
+        <font name="notosans-bold" family="Noto Sans" style="B" file="fonts/Noto_Sans/static/NotoSans-Bold.ttf"/>
+    </fonts>
+
+    <styles>
+        <style name="header_text">
+            <fontFamily>Noto Sans</fontFamily>
+            <fontStyle>B</fontStyle>
+            <fontSize>9</fontSize>
+            <textColor r="0" g="51" b="102"/>
+            <align>L</align>
+        </style>
+        <style name="header_date">
+            <fontFamily>Noto Sans</fontFamily>
+            <fontSize>8</fontSize>
+            <textColor r="120" g="120" b="120"/>
+            <align>R</align>
+        </style>
+        <style name="footer_text">
+            <fontFamily>Noto Sans</fontFamily>
+            <fontSize>8</fontSize>
+            <textColor r="120" g="120" b="120"/>
+            <align>C</align>
+        </style>
+        <style name="footer_left">
+            <fontFamily>Noto Sans</fontFamily>
+            <fontSize>8</fontSize>
+            <textColor r="120" g="120" b="120"/>
+            <align>L</align>
+        </style>
+        <style name="title">
+            <fontFamily>Noto Sans</fontFamily>
+            <fontStyle>B</fontStyle>
+            <fontSize>22</fontSize>
+            <textColor r="0" g="51" b="102"/>
+            <align>C</align>
+        </style>
+        <style name="heading">
+            <fontFamily>Noto Sans</fontFamily>
+            <fontStyle>B</fontStyle>
+            <fontSize>14</fontSize>
+            <textColor r="0" g="51" b="102"/>
+            <align>L</align>
+        </style>
+        <style name="body">
+            <fontFamily>Noto Sans</fontFamily>
+            <fontSize>11</fontSize>
+            <textColor r="0" g="0" b="0"/>
+            <align>L</align>
+            <lineHeight>6</lineHeight>
+        </style>
+        <style name="table_header">
+            <fontFamily>Noto Sans</fontFamily>
+            <fontStyle>B</fontStyle>
+            <fontSize>10</fontSize>
+            <textColor r="255" g="255" b="255"/>
+            <fillColor r="0" g="51" b="102"/>
+            <align>C</align>
+        </style>
+        <style name="table_cell">
+            <fontFamily>Noto Sans</fontFamily>
+            <fontSize>10</fontSize>
+            <textColor r="0" g="0" b="0"/>
+            <align>L</align>
+        </style>
+    </styles>
+
+    <header enabled="true" height="15">
+        <text style="header_text" x="15" y="8">{{.CompanyName}}</text>
+        <text style="header_date" x="-15" y="8">{{.ReportDate}}</text>
+        <line x1="15" y1="14" x2="-15" y2="14" color="#003366" width="0.5"/>
+    </header>
+
+    <footer enabled="true" height="15">
+        <line x1="15" y1="0" x2="-15" y2="0" color="#003366" width="0.3"/>
+        <text style="footer_left" x="15" y="4">{{.DocumentRef}}</text>
+        <text style="footer_text" x="-15" y="4" align="R">Page {{.PageNumber}} of {{.TotalPages}}</text>
+    </footer>
+
+    <sections>
+        <section name="title_section">
+            <spacer height="10"/>
+            <text style="title" spacingAfter="6">{{.ReportTitle}}</text>
+            <text style="body" align="C" spacingAfter="15">{{.ReportSubtitle}}</text>
+        </section>
+
+        <section name="overview">
+            <text style="heading" spacingAfter="5">Overview</text>
+            <text style="body" wrap="true" spacingAfter="10">{{.Overview}}</text>
+            <keyValueList style="body" spacingAfter="15">
+                <item key="Period" value="{{.Period}}"/>
+                <item key="Department" value="{{.Department}}"/>
+                <item key="Status" value="{{.Status}}"/>
+            </keyValueList>
+        </section>
+
+        <section name="quarterly_data">
+            <text style="heading" spacingAfter="5">Quarterly Results</text>
+            <table dataSource="{{.QuarterlyData}}" headerStyle="table_header" cellStyle="table_cell" border="true" spacingAfter="10">
+                <alternateRowColor r="240" g="245" b="250"/>
+                <columns>
+                    <column header="Quarter" field="quarter" width="35" align="C"/>
+                    <column header="Revenue" field="revenue" width="40" align="R"/>
+                    <column header="Expenses" field="expenses" width="40" align="R"/>
+                    <column header="Profit" field="profit" width="40" align="R"/>
+                    <column header="Growth" field="growth" width="25" align="C"/>
+                </columns>
+            </table>
+        </section>
+
+        <section name="departments" loop="{{.Departments}}" loopVariable="dept">
+            <text style="heading" spacingAfter="4">{{title .dept.Name}}</text>
+            <text style="body" wrap="true" spacingAfter="4">{{.dept.Description}}</text>
+            <keyValueList style="body" spacingAfter="4">
+                <item key="Head Count" value="{{.dept.HeadCount}}"/>
+                <item key="Budget" value="{{.dept.Budget}}"/>
+                <item key="Utilization" value="{{.dept.Utilization}}"/>
+            </keyValueList>
+            <list style="body" items="{{.dept.Highlights}}" bullet="•" indent="6" spacingAfter="10"/>
+        </section>
+
+        <section name="notes">
+            <text style="heading" spacingAfter="5">Notes</text>
+            <text style="body" wrap="true" spacingAfter="6">{{.Notes}}</text>
+        </section>
+    </sections>
+</report>

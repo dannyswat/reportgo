@@ -23,16 +23,11 @@ func (e *Engine) renderText(text *models.Text) {
 		if text.X == 0 {
 			x = currentX
 		}
-		if text.Y == 0 {
-			y = currentY
-		}
 		sizeX, sizeY := e.pdf.GetPageSize()
 		if x < 0 {
 			x = sizeX + x
 		}
-		if y < 0 {
-			y = sizeY + y
-		}
+		y = e.resolvePositionedY(y, currentY, sizeY)
 		e.pdf.SetXY(x, y)
 	} else {
 		e.pdf.SetX(e.flowLeftMargin())
@@ -100,6 +95,9 @@ func (e *Engine) renderImage(img *models.Image) {
 
 	if y == 0 {
 		y = e.pdf.GetY()
+	} else {
+		_, pageHeight := e.pdf.GetPageSize()
+		y = e.resolvePositionedY(y, e.pdf.GetY(), pageHeight)
 	}
 
 	e.pdf.Image(path, x, y, img.Width, img.Height, false, "", 0, "")
@@ -482,11 +480,17 @@ func (e *Engine) renderLine(line *models.Line) {
 	if x2 < 0 {
 		x2 = pageWidth + x2
 	}
-	if y1 < 0 {
-		y1 = pageHeight + y1
-	}
-	if y2 < 0 {
-		y2 = pageHeight + y2
+	if !(line.Y1 == 0 && line.Y2 == 0) {
+		if y1 < 0 {
+			y1 = pageHeight + y1
+		} else if y1 > 0 {
+			y1 = e.positionOffsetY + y1
+		}
+		if y2 < 0 {
+			y2 = pageHeight + y2
+		} else if y2 > 0 {
+			y2 = e.positionOffsetY + y2
+		}
 	}
 
 	// Set line color

@@ -26,6 +26,7 @@ type Engine struct {
 	funcMap         template.FuncMap
 	flowOffsetLeft  float64
 	flowOffsetRight float64
+	positionOffsetY float64
 	embeddedFonts   []models.EmbeddedFont
 }
 
@@ -137,6 +138,10 @@ func (e *Engine) initPDF() {
 		e.pdf.SetAutoPageBreak(true, doc.Margins.Bottom)
 	}
 
+	// Register a placeholder that gofpdf replaces with the total page count
+	// at output time. Header/footer templates can use {{.TotalPages}}.
+	e.pdf.AliasNbPages("{nb}")
+
 	// Ensure unstyled text elements can render even when no explicit style has
 	// selected a font yet. Styled content will override this as needed.
 	e.pdf.SetFont("Arial", "", 12)
@@ -187,20 +192,35 @@ func (e *Engine) buildStyleMap() {
 func (e *Engine) setupHeaderFooter() {
 	e.pdf.SetHeaderFuncMode(func() {
 		if e.report.Header != nil && e.report.Header.Enabled {
-			e.renderHeaderFooterElements(e.report.Header.Texts, e.report.Header.Images, e.report.Header.Lines)
+			e.renderHeaderFooterElements(0, e.report.Header.Texts, e.report.Header.Images, e.report.Header.Lines)
 		}
 	}, true)
 
 	e.pdf.SetFooterFunc(func() {
 		if e.report.Footer != nil && e.report.Footer.Enabled {
 			e.pdf.SetY(-e.report.Footer.Height)
-			e.renderHeaderFooterElements(e.report.Footer.Texts, e.report.Footer.Images, e.report.Footer.Lines)
+			_, pageHeight := e.pdf.GetPageSize()
+			e.renderHeaderFooterElements(pageHeight-e.report.Footer.Height, e.report.Footer.Texts, e.report.Footer.Images, e.report.Footer.Lines)
 		}
 	})
 }
 
 // renderHeaderFooterElements renders header/footer elements.
-func (e *Engine) renderHeaderFooterElements(texts []models.Text, images []models.Image, lines []models.Line) {
+// It temporarily injects PageNumber and TotalPages into the data map
+// so templates can use {{.PageNumber}} and {{.TotalPages}}.
+func (e *Engine) renderHeaderFooterElements(positionOffsetY float64, texts []models.Text, images []models.Image, lines []models.Line) {
+	original := e.data
+	originalOffsetY := e.positionOffsetY
+	scoped := cloneDataMap(original)
+	scoped["PageNumber"] = fmt.Sprintf("%d", e.pdf.PageNo())
+	scoped["TotalPages"] = "{nb}"
+	e.data = scoped
+	e.positionOffsetY = positionOffsetY
+	defer func() {
+		e.data = original
+		e.positionOffsetY = originalOffsetY
+	}()
+
 	for _, text := range texts {
 		e.renderText(&text)
 	}
@@ -210,6 +230,16 @@ func (e *Engine) renderHeaderFooterElements(texts []models.Text, images []models
 	for _, line := range lines {
 		e.renderLine(&line)
 	}
+}
+
+func (e *Engine) resolvePositionedY(y, currentY, pageHeight float64) float64 {
+	if y == 0 {
+		return currentY
+	}
+	if y < 0 {
+		return pageHeight + y
+	}
+	return e.positionOffsetY + y
 }
 
 // renderSection renders a section and its elements.

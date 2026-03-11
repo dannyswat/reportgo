@@ -24,6 +24,12 @@ go run ./cmd/reportgo \
 	-data examples/rowgrid/data.json \
 	-output examples/rowgrid/rowgrid.pdf
 
+echo "Generating header_footer example PDF..."
+go run ./cmd/reportgo \
+	-template templates/examples/header_footer.xml \
+	-data examples/header_footer/data.json \
+	-output examples/header_footer/header_footer.pdf
+
 echo "Generating showcase example PDF..."
 go run ./examples/showcase
 
@@ -31,4 +37,5 @@ echo "Generated PDFs:"
 echo "  examples/simple/simple.pdf"
 echo "  examples/payslip/payslip.pdf"
 echo "  examples/rowgrid/rowgrid.pdf"
+echo "  examples/header_footer/header_footer.pdf"
 echo "  examples/showcase/showcase.pdf"

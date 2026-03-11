@@ -34,10 +34,7 @@ func (e *Engine) renderText(text *models.Text) {
 	}
 
 	// Get alignment
-	align := "L"
-	if text.Align != "" {
-		align = text.Align
-	}
+	align := e.resolveTextAlign(text)
 
 	// Get line height from style
 	lineHeight := 6.0
@@ -70,6 +67,24 @@ func (e *Engine) renderText(text *models.Text) {
 	if text.SpacingAfter > 0 {
 		e.pdf.Ln(text.SpacingAfter)
 	}
+}
+
+func (e *Engine) resolveTextAlign(text *models.Text) string {
+	if text == nil {
+		return "L"
+	}
+
+	if text.Align != "" {
+		return text.Align
+	}
+
+	if text.Style != "" {
+		if style, ok := e.styles[text.Style]; ok && style.Align != "" {
+			return style.Align
+		}
+	}
+
+	return "L"
 }
 
 // renderImage renders an image element.

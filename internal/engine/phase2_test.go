@@ -126,6 +126,24 @@ func TestRenderRowAllowsAutoWidthText(t *testing.T) {
 	}
 }
 
+func TestResolveTextAlignUsesStyleFallback(t *testing.T) {
+	engine := newTestEngine(t, nil)
+	engine.styles["right"] = &models.Style{Align: "R"}
+
+	if got := engine.resolveTextAlign(&models.Text{Style: "right"}); got != "R" {
+		t.Fatalf("expected style alignment fallback, got %q", got)
+	}
+}
+
+func TestResolveTextAlignPrefersElementOverride(t *testing.T) {
+	engine := newTestEngine(t, nil)
+	engine.styles["left"] = &models.Style{Align: "L"}
+
+	if got := engine.resolveTextAlign(&models.Text{Style: "left", Align: "R"}); got != "R" {
+		t.Fatalf("expected element alignment override, got %q", got)
+	}
+}
+
 func TestRenderRowSupportsRelativeOffsets(t *testing.T) {
 	engine := newTestEngine(t, nil)
 	engine.applyStyle("body")

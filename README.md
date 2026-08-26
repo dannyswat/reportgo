@@ -136,6 +136,8 @@ Rows provide horizontal flow layout for `text` and `image` children only. `rowgr
 
 Built-in helpers include `upper`, `lower`, `title`, `trim`, `default`, `add`, `sub`, `mul`, `div`, `join`, `replace`, `ifelse`, `truncate`, `formatDate`, `dateFormat`, `formatNumber`, `formatCurrency`, and `formatPercent`.
 
+`formatNumber`, `formatCurrency`, and `formatPercent` accept an optional trailing thousands-grouping flag, e.g. `{{formatNumber .Amount 2 true}}` -> `1,234.50`. Table columns support the same via `decimals` and `grouping` attributes on `<column>`.
+
 Applications can register additional helpers with `reportgo.WithFuncMap(...)` or `engine.AddFuncMap(...)`.
 
 `default` takes the fallback value first and the candidate value second:

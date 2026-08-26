@@ -298,6 +298,8 @@
         <xs:attribute name="width" type="rg:PositiveDecimal" use="required"/>
         <xs:attribute name="align" type="rg:AlignType" default="L"/>
         <xs:attribute name="format" type="rg:ColumnFormatType" default="string"/>
+        <xs:attribute name="decimals" type="xs:nonNegativeInteger"/>
+        <xs:attribute name="grouping" type="xs:boolean" default="false"/>
     </xs:complexType>
 
     <xs:complexType name="ListElementType">

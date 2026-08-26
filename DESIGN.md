@@ -120,6 +120,12 @@ Applications can extend the helper set via `WithFuncMap` at construction time or
 
 The `default` helper uses the signature `default fallback value`.
 
+`formatNumber value decimals [grouped]` formats to a fixed number of decimals, and enables thousand-separator grouping when the optional trailing `grouped` bool is `true` (e.g. `{{formatNumber .Amount 2 true}}` -> `1,234.50`).
+
+`formatCurrency value [symbol] [decimals] [grouped]` defaults to a `$` prefix and 2 decimals; all trailing args are optional (e.g. `{{formatCurrency .Amount "EUR " 0 true}}` -> `EUR 1,235` for `.Amount` = `1234.6`).
+
+`formatPercent value [decimals] [grouped]` defaults to 2 decimals (e.g. `{{formatPercent .Rate 1 true}}` -> `12.5%`).
+
 ### Conditional Rendering and Loops
 
 Conditional rendering is supported on sections and individual elements through the `condition` attribute.
@@ -315,7 +321,7 @@ Supported attributes:
     <alternateRowColor r="245" g="245" b="245"/>
     <columns>
         <column header="Name" field="name" width="80" align="L"/>
-        <column header="Value" field="value" width="30" align="R" format="number"/>
+        <column header="Value" field="value" width="30" align="R" format="number" decimals="0" grouping="true"/>
     </columns>
 </table>
 ```
@@ -330,6 +336,8 @@ Supported attributes:
 - `spacingAfter`
 
 Column `format` values currently handled by the renderer are `currency`, `percent`, `number`, and the empty default case.
+
+`decimals` overrides the number of decimal places (defaults to 2 for `currency`/`percent`, and auto-detected for `number`: 0 for whole numbers, 2 otherwise). `grouping="true"` inserts thousand separators (e.g. `1,234,567.89`).
 
 ### List
 

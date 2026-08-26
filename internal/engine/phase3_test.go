@@ -52,6 +52,60 @@ func TestDefaultFuncMapProvidesFormattingHelpers(t *testing.T) {
 	}
 }
 
+func TestFormattingHelpersSupportGroupingAndDecimals(t *testing.T) {
+	engine := newTestEngine(t, map[string]interface{}{
+		"Big":    1234567.891,
+		"Amount": 1234.5,
+		"Rate":   0.12345,
+	})
+
+	if got := engine.processTemplate("{{formatNumber .Big 2}}"); got != "1234567.89" {
+		t.Fatalf("expected ungrouped number, got %q", got)
+	}
+	if got := engine.processTemplate("{{formatNumber .Big 2 true}}"); got != "1,234,567.89" {
+		t.Fatalf("expected grouped number, got %q", got)
+	}
+	if got := engine.processTemplate("{{formatNumber .Big 0 true}}"); got != "1,234,568" {
+		t.Fatalf("expected grouped integer, got %q", got)
+	}
+	if got := engine.processTemplate("{{formatCurrency .Amount \"\" 0 true}}"); got != "$1,234" {
+		t.Fatalf("expected grouped currency with explicit decimals, got %q", got)
+	}
+	if got := engine.processTemplate("{{formatCurrency .Amount \"EUR \" 2 true}}"); got != "EUR 1,234.50" {
+		t.Fatalf("expected grouped currency, got %q", got)
+	}
+	if got := engine.processTemplate("{{formatPercent .Rate 3 true}}"); got != "12.345%" {
+		t.Fatalf("expected percent with explicit decimals, got %q", got)
+	}
+}
+
+func TestFormatValueSupportsExplicitDecimalsAndGrouping(t *testing.T) {
+	zeroDecimals := 0
+	threeDecimals := 3
+
+	tests := []struct {
+		name string
+		val  interface{}
+		col  models.Column
+		want string
+	}{
+		{"auto currency", 1234.5, models.Column{Format: "currency"}, "$1234.50"},
+		{"grouped currency", 1234.5, models.Column{Format: "currency", Grouping: true}, "$1,234.50"},
+		{"explicit decimals grouped currency", 1234.567, models.Column{Format: "currency", Decimals: &threeDecimals, Grouping: true}, "$1,234.567"},
+		{"explicit zero decimals grouped number", 1234567.4, models.Column{Format: "number", Decimals: &zeroDecimals, Grouping: true}, "1,234,567"},
+		{"auto whole number", 1000.0, models.Column{Format: "number"}, "1000"},
+		{"grouped percent with explicit decimals", 0.12345, models.Column{Format: "percent", Decimals: &threeDecimals, Grouping: true}, "12.345%"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := formatValue(tt.val, tt.col); got != tt.want {
+				t.Fatalf("expected %q, got %q", tt.want, got)
+			}
+		})
+	}
+}
+
 func TestEmbeddedFontsAreRegistered(t *testing.T) {
 	fontData := mustReadFontFile(t)
 	engine := newTestEngine(t, nil)

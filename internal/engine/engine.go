@@ -720,7 +720,9 @@ func formatDate(value interface{}, layout string) string {
 	return text
 }
 
-func formatNumberValue(value interface{}, decimals int) string {
+// formatNumberValue formats value with the given decimal places. An optional
+// trailing bool enables thousand-separator grouping, e.g. formatNumber 1234.5 2 true -> "1,234.50".
+func formatNumberValue(value interface{}, decimals int, grouped ...bool) string {
 	floatValue, ok := toFloat64(value)
 	if !ok {
 		return fmt.Sprint(value)
@@ -728,27 +730,105 @@ func formatNumberValue(value interface{}, decimals int) string {
 	if decimals < 0 {
 		decimals = 0
 	}
-	return strconv.FormatFloat(floatValue, 'f', decimals, 64)
-}
-
-func formatCurrencyValue(value interface{}, symbol ...string) string {
-	prefix := "$"
-	if len(symbol) > 0 && symbol[0] != "" {
-		prefix = symbol[0]
+	result := strconv.FormatFloat(floatValue, 'f', decimals, 64)
+	if len(grouped) > 0 && grouped[0] {
+		result = groupThousands(result)
 	}
-	return prefix + formatNumberValue(value, 2)
+	return result
 }
 
-func formatPercentValue(value interface{}, decimals ...int) string {
+// formatCurrencyValue accepts optional trailing args: symbol (string, default "$"),
+// decimals (int, default 2), and grouped (bool, default false).
+func formatCurrencyValue(value interface{}, args ...interface{}) string {
+	prefix := "$"
+	decimals := 2
+	grouped := false
+	if len(args) > 0 {
+		if s, ok := args[0].(string); ok && s != "" {
+			prefix = s
+		}
+	}
+	if len(args) > 1 {
+		if d, ok := toIntArg(args[1]); ok {
+			decimals = d
+		}
+	}
+	if len(args) > 2 {
+		if g, ok := args[2].(bool); ok {
+			grouped = g
+		}
+	}
+	return prefix + formatNumberValue(value, decimals, grouped)
+}
+
+// formatPercentValue accepts optional trailing args: decimals (int, default 2)
+// and grouped (bool, default false).
+func formatPercentValue(value interface{}, args ...interface{}) string {
 	floatValue, ok := toFloat64(value)
 	if !ok {
 		return fmt.Sprint(value)
 	}
 	precision := 2
-	if len(decimals) > 0 {
-		precision = decimals[0]
+	grouped := false
+	if len(args) > 0 {
+		if d, ok := toIntArg(args[0]); ok {
+			precision = d
+		}
 	}
-	return formatNumberValue(floatValue*100, precision) + "%"
+	if len(args) > 1 {
+		if g, ok := args[1].(bool); ok {
+			grouped = g
+		}
+	}
+	return formatNumberValue(floatValue*100, precision, grouped) + "%"
+}
+
+// toIntArg converts a template-supplied argument (typically int) to an int.
+func toIntArg(value interface{}) (int, bool) {
+	f, ok := toFloat64(value)
+	if !ok {
+		return 0, false
+	}
+	return int(f), true
+}
+
+// groupThousands inserts "," separators into the integer part of a formatted
+// number string produced by strconv.FormatFloat or floatToString.
+func groupThousands(s string) string {
+	negative := strings.HasPrefix(s, "-")
+	if negative {
+		s = s[1:]
+	}
+
+	intPart, fracPart := s, ""
+	if idx := strings.IndexByte(s, '.'); idx >= 0 {
+		intPart, fracPart = s[:idx], s[idx:]
+	}
+
+	n := len(intPart)
+	if n <= 3 {
+		if negative {
+			return "-" + intPart + fracPart
+		}
+		return intPart + fracPart
+	}
+
+	var b strings.Builder
+	first := n % 3
+	if first == 0 {
+		first = 3
+	}
+	b.WriteString(intPart[:first])
+	for i := first; i < n; i += 3 {
+		b.WriteByte(',')
+		b.WriteString(intPart[i : i+3])
+	}
+
+	result := b.String() + fracPart
+	if negative {
+		result = "-" + result
+	}
+	return result
 }
 
 func isTruthyValue(value interface{}) bool {

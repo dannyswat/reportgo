@@ -182,7 +182,7 @@ func (e *Engine) renderTable(table *models.Table) {
 		}
 
 		for _, col := range table.Columns.Columns {
-			value := formatValue(rowMap[col.Field], col.Format)
+			value := formatValue(rowMap[col.Field], col)
 			align := col.Align
 			if align == "" {
 				align = "L"
@@ -615,45 +615,67 @@ func trimSpace(s string) string {
 	return s
 }
 
-// formatValue formats a value based on the column format.
-func formatValue(val interface{}, format string) string {
+// autoDecimals means "use the format's default precision" instead of an explicit value.
+const autoDecimals = -1
+
+// formatValue formats a value based on the column format, decimals and grouping.
+func formatValue(val interface{}, col models.Column) string {
 	if val == nil {
 		return ""
+	}
+
+	decimals := autoDecimals
+	if col.Decimals != nil {
+		decimals = *col.Decimals
 	}
 
 	switch v := val.(type) {
 	case string:
 		return v
 	case float64:
-		switch format {
+		switch col.Format {
 		case "currency":
-			return formatCurrency(v)
+			return formatCurrency(v, decimals, col.Grouping)
 		case "percent":
-			return formatPercent(v)
+			return formatPercent(v, decimals, col.Grouping)
 		default:
-			return formatNumber(v)
+			return formatNumber(v, decimals, col.Grouping)
 		}
 	case int:
-		return formatNumber(float64(v))
+		return formatValue(float64(v), col)
 	default:
 		return ""
 	}
 }
 
-func formatCurrency(v float64) string {
-	return "$" + formatNumber(v)
-}
-
-func formatPercent(v float64) string {
-	return formatNumber(v*100) + "%"
-}
-
-func formatNumber(v float64) string {
-	// Simple formatting
-	if v == float64(int(v)) {
-		return intToString(int(v))
+func formatCurrency(v float64, decimals int, grouped bool) string {
+	if decimals == autoDecimals {
+		decimals = 2
 	}
-	return floatToString(v, 2)
+	return "$" + formatNumber(v, decimals, grouped)
+}
+
+func formatPercent(v float64, decimals int, grouped bool) string {
+	if decimals == autoDecimals {
+		decimals = 2
+	}
+	return formatNumber(v*100, decimals, grouped) + "%"
+}
+
+func formatNumber(v float64, decimals int, grouped bool) string {
+	if decimals == autoDecimals {
+		// Simple formatting: whole numbers have no decimal places
+		if v == float64(int(v)) {
+			decimals = 0
+		} else {
+			decimals = 2
+		}
+	}
+	result := floatToString(v, decimals)
+	if grouped {
+		result = groupThousands(result)
+	}
+	return result
 }
 
 func intToString(n int) string {
@@ -680,6 +702,10 @@ func intToString(n int) string {
 }
 
 func floatToString(f float64, decimals int) string {
+	if decimals <= 0 {
+		return intToString(int(f + 0.5))
+	}
+
 	// Multiply to shift decimal places
 	multiplier := 1.0
 	for i := 0; i < decimals; i++ {

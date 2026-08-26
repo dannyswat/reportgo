@@ -77,6 +77,11 @@ type Column struct {
 	Width  float64 `xml:"width,attr"`
 	Align  string  `xml:"align,attr"`
 	Format string  `xml:"format,attr"`
+	// Decimals overrides the number of decimal places for number/currency/percent
+	// formats. Nil means use the format's default precision.
+	Decimals *int `xml:"decimals,attr"`
+	// Grouping enables thousand separators (e.g. 1,234.56) for number/currency/percent formats.
+	Grouping bool `xml:"grouping,attr"`
 }
 
 // List represents a list element.
